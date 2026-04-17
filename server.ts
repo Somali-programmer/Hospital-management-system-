@@ -1,14 +1,28 @@
 import express from 'express';
 import path from 'path';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 
-const { sign, verify } = jwt as any;
+// Robust extraction of JWT functions for ESM/CJS compatibility
+const sign = (jwt as any).sign || (jwt as any).default?.sign;
+const verify = (jwt as any).verify || (jwt as any).default?.verify;
+
+if (!sign || !verify) {
+  console.error('CRITICAL: jsonwebtoken functions (sign/verify) could not be resolved.');
+}
 
 const app = express();
 const PORT = 3000;
 const JWT_SECRET = 'super-secret-ahis-key-2026'; // In production, this would be in .env
 
 app.use(express.json());
+
+// Path prefix normalization for Vercel serverless environment
+app.use((req, res, next) => {
+  if (req.url && !req.url.startsWith('/api') && req.url !== '/') {
+    req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+  }
+  next();
+});
 
 // ==========================================
 // DATA LAYER (Mocks for Relational DB - 3NF Architecture)
