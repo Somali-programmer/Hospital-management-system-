@@ -8,6 +8,14 @@ const JWT_SECRET = 'super-secret-ahis-key-2026'; // In production, this would be
 
 app.use(express.json());
 
+// Vercel path normalization: if Vercel strips /api, we put it back so our routes match.
+app.use((req, res, next) => {
+  if (req.url && !req.url.startsWith('/api') && req.url !== '/') {
+    req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+  }
+  next();
+});
+
 // ==========================================
 // DATA LAYER (Mocks for Relational DB - 3NF Architecture)
 // ==========================================
@@ -382,33 +390,10 @@ app.get('/api/docs/architecture', (req, res) => {
 // ==========================================
 // VITE MIDDLEWARE (PRESENTATION LAYER)
 // ==========================================
+// Global error handler
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error('Server execution error:', err);
+  res.status(500).json({ error: 'Internal Server Error', details: err.message, stack: err.stack });
+});
+
 export default app;
-
-async function startServer() {
-  if (process.env.VERCEL) {
-    console.log('Running in serverless mode');
-    return;
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    // Production serving static files
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`AHIS Server running on http://localhost:${PORT}`);
-  });
-}
-
-startServer();
