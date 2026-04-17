@@ -2,6 +2,8 @@ import express from 'express';
 import path from 'path';
 import jwt from 'jsonwebtoken';
 
+const { sign, verify } = jwt as any;
+
 const app = express();
 const PORT = 3000;
 const JWT_SECRET = 'super-secret-ahis-key-2026'; // In production, this would be in .env
@@ -190,7 +192,7 @@ function authenticateToken(req: any, res: any, next: any) {
   
   if (token == null) return res.sendStatus(401);
 
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+  verify(token, JWT_SECRET, (err: any, user: any) => {
     if (err) return res.sendStatus(403);
     req.user = user;
     next();
@@ -229,7 +231,7 @@ app.post('/api/auth/login', (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    const token = jwt.sign(
+    const token = sign(
       { id: user.id, role: user.role, name: user.name }, 
       JWT_SECRET, 
       { expiresIn: '1h' }
