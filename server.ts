@@ -8,14 +8,6 @@ const JWT_SECRET = 'super-secret-ahis-key-2026'; // In production, this would be
 
 app.use(express.json());
 
-// Vercel path normalization: if Vercel strips /api, we put it back so our routes match.
-app.use((req, res, next) => {
-  if (req.url && !req.url.startsWith('/api') && req.url !== '/') {
-    req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
-  }
-  next();
-});
-
 // ==========================================
 // DATA LAYER (Mocks for Relational DB - 3NF Architecture)
 // ==========================================
