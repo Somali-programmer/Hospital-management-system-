@@ -39,6 +39,11 @@ export default function Login() {
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 tracking-tight">
           Nexus AHIS
         </h2>
+        <div className="mt-2 flex justify-center">
+          <span className="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold uppercase rounded-full tracking-wider border border-green-200">
+            Frontend Only • Mock Mode
+          </span>
+        </div>
         <p className="mt-2 text-center text-sm text-gray-600">
           Automated Healthcare Information System
         </p>
