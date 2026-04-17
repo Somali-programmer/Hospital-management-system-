@@ -1,0 +1,6 @@
+{
+  "name": "Automated Healthcare Information System (AHIS)",
+  "description": "A 3-tier web architecture MVP for managing patient registration, appointments, medical records, and billing with role-based access control.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
