@@ -25,7 +25,14 @@ export default function Login() {
       });
 
       if (!response.ok) {
-        throw new Error('Invalid credentials');
+        let msg = 'Invalid credentials';
+        try {
+          const errData = await response.json();
+          if (errData.error) msg = errData.error;
+        } catch {
+          msg = `Server Error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(msg);
       }
 
       const data = await response.json();
