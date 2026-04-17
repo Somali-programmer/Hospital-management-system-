@@ -210,16 +210,36 @@ function requireRole(roles: string[]) {
 // APPLICATION LAYER (API Endpoints)
 // ==========================================
 
+// Health Check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', environment: process.env.NODE_ENV, timestamp: new Date().toISOString() });
+});
+
 // Auth
 app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
-  const user = users.find(u => u.username === username && u.password === password);
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid credentials' });
+  try {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    const user = users.find(u => u.username === username && u.password === password);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    const token = jwt.sign(
+      { id: user.id, role: user.role, name: user.name }, 
+      JWT_SECRET, 
+      { expiresIn: '1h' }
+    );
+    
+    res.json({ token, user: { id: user.id, role: user.role, name: user.name } });
+  } catch (err: any) {
+    console.error('Login Error:', err);
+    res.status(500).json({ error: 'Login failure', details: err.message });
   }
-  
-  const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '1h' });
-  res.json({ token, user: { id: user.id, role: user.role, name: user.name } });
 });
 
 // Patients (CRUD)

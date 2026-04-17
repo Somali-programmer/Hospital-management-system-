@@ -26,11 +26,14 @@ export default function Login() {
 
       if (!response.ok) {
         let msg = 'Invalid credentials';
+        const text = await response.text();
         try {
-          const errData = await response.json();
+          const errData = JSON.parse(text);
           if (errData.error) msg = errData.error;
+          else if (errData.details) msg = `Error: ${errData.details}`;
         } catch {
-          msg = `Server Error: ${response.status} ${response.statusText}`;
+          // If not JSON, show the status and first few characters of the response
+          msg = `Server Error: ${response.status}. Response: ${text.substring(0, 100)}...`;
         }
         throw new Error(msg);
       }
