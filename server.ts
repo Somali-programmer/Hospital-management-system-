@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import jwt from 'jsonwebtoken';
 
@@ -386,7 +385,13 @@ app.get('/api/docs/architecture', (req, res) => {
 export default app;
 
 async function startServer() {
+  if (process.env.VERCEL) {
+    console.log('Running in serverless mode');
+    return;
+  }
+
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -399,11 +404,6 @@ async function startServer() {
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
-  }
-
-  if (process.env.VERCEL) {
-    console.log('Running in serverless mode');
-    return;
   }
 
   app.listen(PORT, '0.0.0.0', () => {
