@@ -23,55 +23,16 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
-
-// --- Types ---
-interface ClinicalHistory {
-  presenting_complaint: string;
-  family_history: string;
-  social_history: string;
-  vitals: {
-    bp: string;
-    temp: string;
-    pulse: string;
-  };
-}
-
-interface Patient {
-  id: number;
-  first_name: string;
-  last_name: string;
-  dob: string;
-  gender: string;
-  contact: string;
-  address: string;
-  blood_group?: string;
-  allergies?: string[];
-  status?: string;
-  emergency_contact?: string;
-}
-
-interface MedicalRecord {
-  id: number;
-  diagnosis: string;
-  prescription: string;
-  created_at: string;
-  clinical_history?: ClinicalHistory;
-}
-
-interface Appointment {
-  id: number;
-  date: string;
-  status: string;
-  notes: string;
-}
-
-interface Bill {
-  id: number;
-  amount: number;
-  status: string;
-  issued_date: string;
-  currency: string;
-}
+import { 
+  MOCK_PATIENTS, 
+  MOCK_APPOINTMENTS, 
+  MOCK_RECORDS, 
+  MOCK_BILLING,
+  Patient,
+  Appointment,
+  MedicalRecord,
+  Billing as Bill
+} from '../lib/mockData';
 
 interface PatientHistory {
   patient: Patient;
@@ -110,9 +71,15 @@ const FormatCurrency = (amount: number) => {
 };
 
 export default function Patients() {
-  const { token, user: currentUser } = useAuth();
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+  const { user: currentUser } = useAuth();
+  
+  // Use local state initialized from mock data to simulate "database"
+  const [patients, setPatients] = useState<Patient[]>(MOCK_PATIENTS);
+  const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>(MOCK_RECORDS);
+  const [billing, setBilling] = useState<Bill[]>(MOCK_BILLING);
+
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [history, setHistory] = useState<PatientHistory | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -131,60 +98,47 @@ export default function Patients() {
   const [recordForm, setRecordForm] = useState({
     diagnosis: '',
     prescription: '',
-    presenting_complaint: '',
-    family_history: '',
-    social_history: '',
-    vitals_bp: '',
-    vitals_temp: '',
-    vitals_pulse: '',
+    presentingComplaint: '',
+    familyHistory: '',
+    socialHistory: '',
+    vitalsBp: '',
+    vitalsTemp: '',
+    vitalsPulse: '',
     generateBillAmount: '500',
   });
 
   useEffect(() => {
-    fetchPatients();
-  }, [token]);
+    // Initial load simulation
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (selectedPatientId) {
-      fetchHistory(selectedPatientId);
-      setIsEditing(false); // Reset edit mode on selection change
+      setIsEditing(false);
+      
+      const p = patients.find(p => p.id === selectedPatientId);
+      if (p) {
+        setHistory({
+          patient: p,
+          appointments: appointments.filter(a => a.patientId === selectedPatientId),
+          records: medicalRecords.filter(r => r.patientId === selectedPatientId),
+          billing: billing.filter(b => b.patientId === selectedPatientId)
+        });
+      }
     } else {
       setHistory(null);
       setIsEditing(false);
     }
-  }, [selectedPatientId, token]);
-
-  const fetchPatients = async () => {
-    try {
-      const res = await fetch('/api/patients', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setPatients(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchHistory = async (id: number) => {
-    try {
-      const res = await fetch(`/api/patients/${id}/history`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setHistory(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  }, [selectedPatientId, patients, appointments, medicalRecords, billing]);
 
   const handleEditInit = () => {
     if (history?.patient) {
       setEditForm({
-        first_name: history.patient.first_name,
-        last_name: history.patient.last_name,
+        firstName: history.patient.firstName,
+        lastName: history.patient.lastName,
         dob: history.patient.dob,
         contact: history.patient.contact,
         address: history.patient.address,
@@ -195,8 +149,6 @@ export default function Patients() {
   };
 
   const validateForm = () => {
-    // Basic phone validation: allows characters like +, space, -, and digits (7-15 length)
-    // Supports Ethiopian format specifically (+251...) or generic international formats
     const phoneRegex = /^\+?[0-9\s\-()]{7,20}$/;
     
     if (!editForm.contact) {
@@ -221,164 +173,103 @@ export default function Patients() {
 
   const performSave = async () => {
     if (!selectedPatientId || !history) return;
-    try {
-      const res = await fetch(`/api/patients/${selectedPatientId}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify(editForm)
-      });
-      if (res.ok) {
-        const updatedPatient = await res.json();
-        setHistory({ ...history, patient: updatedPatient });
-        setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
-        setIsEditing(false);
-        setShowSaveConfirm(false);
-      }
-    } catch (err) {
-      console.error(err);
-    }
+    
+    setPatients(prev => prev.map(p => 
+      p.id === selectedPatientId ? { ...p, ...editForm } : p
+    ));
+    
+    setIsEditing(false);
+    setShowSaveConfirm(false);
   };
 
   const handleCreateAppointment = async () => {
-    if (!selectedPatientId || !token) return;
-    try {
-      const res = await fetch('/api/appointments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          patient_id: selectedPatientId,
-          date: apptForm.date,
-          notes: apptForm.notes,
-          doctor_id: 2, // Mock doctor ID for admin/receptionist creation
-        })
-      });
-
-      if (res.ok) {
-        const newAppt = await res.json();
-        setHistory(prev => prev ? {
-          ...prev,
-          appointments: [newAppt, ...prev.appointments]
-        } : null);
-        setIsCreatingAppt(false);
-        setApptForm({
-          date: new Date().toISOString().split('T')[0],
-          notes: '',
-        });
-      }
-    } catch (err) {
-      console.error(err);
-    }
+    if (!selectedPatientId || !currentUser) return;
+    
+    const newAppt: Appointment = {
+      id: `A-${Math.random().toString(36).substr(2, 9)}`,
+      patientId: selectedPatientId,
+      date: apptForm.date,
+      notes: apptForm.notes,
+      doctorId: currentUser.id,
+      status: 'scheduled'
+    };
+    
+    setAppointments(prev => [...prev, newAppt]);
+    setIsCreatingAppt(false);
+    setApptForm({
+      date: new Date().toISOString().split('T')[0],
+      notes: '',
+    });
   };
 
   const handleCreateRecord = async () => {
-    if (!selectedPatientId || !token) return;
-    try {
-      const payload = {
-        patient_id: selectedPatientId,
-        diagnosis: recordForm.diagnosis,
-        prescription: recordForm.prescription,
-        clinical_history: {
-          presenting_complaint: recordForm.presenting_complaint,
-          family_history: recordForm.family_history,
-          social_history: recordForm.social_history,
-          vitals: {
-            bp: recordForm.vitals_bp,
-            temp: recordForm.vitals_temp,
-            pulse: recordForm.vitals_pulse,
-          }
-        },
-        generateBillAmount: recordForm.generateBillAmount,
+    if (!selectedPatientId || !currentUser) return;
+    
+    const newRecord: MedicalRecord = {
+      id: `R-${Math.random().toString(36).substr(2, 9)}`,
+      patientId: selectedPatientId,
+      doctorId: currentUser.id,
+      diagnosis: recordForm.diagnosis,
+      prescription: recordForm.prescription,
+      clinicalHistory: {
+        presentingComplaint: recordForm.presentingComplaint,
+        familyHistory: recordForm.familyHistory,
+        socialHistory: recordForm.socialHistory,
+        vitals: {
+          bp: recordForm.vitalsBp,
+          temp: recordForm.vitalsTemp,
+          pulse: recordForm.vitalsPulse,
+        }
+      },
+      createdAt: new Date().toISOString()
+    };
+
+    setMedicalRecords(prev => [...prev, newRecord]);
+
+    if (recordForm.generateBillAmount) {
+      const newBill: Bill = {
+        id: `B-${Math.random().toString(36).substr(2, 9)}`,
+        patientId: selectedPatientId,
+        amount: parseFloat(recordForm.generateBillAmount),
+        status: 'unpaid',
+        issuedDate: new Date().toISOString(),
+        currency: 'ETB'
       };
-
-      const res = await fetch('/api/records', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        // Assume record affects history
-        const newRecord = await res.json();
-        setHistory(prev => {
-          if (!prev) return null;
-          // If a bill was generated, we might want to refetch the full history to be totally consistent,
-          // but for now let's just trigger a full history refresh since the endpoint created both record and bill.
-          fetchHistory(selectedPatientId);
-          return prev;
-        });
-        setIsCreatingRecord(false);
-        setRecordForm({
-          diagnosis: '',
-          prescription: '',
-          presenting_complaint: '',
-          family_history: '',
-          social_history: '',
-          vitals_bp: '',
-          vitals_temp: '',
-          vitals_pulse: '',
-          generateBillAmount: '500',
-        });
-      }
-    } catch (err) {
-      console.error(err);
+      setBilling(prev => [...prev, newBill]);
     }
+
+    setIsCreatingRecord(false);
+    setRecordForm({
+      diagnosis: '',
+      prescription: '',
+      presentingComplaint: '',
+      familyHistory: '',
+      socialHistory: '',
+      vitalsBp: '',
+      vitalsTemp: '',
+      vitalsPulse: '',
+      generateBillAmount: '500',
+    });
   };
 
-  const handlePayBill = async (billId: number) => {
-    if (!token) return;
-    try {
-      const res = await fetch(`/api/billing/${billId}/pay`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (res.ok) {
-        if (selectedPatientId) {
-           fetchHistory(selectedPatientId);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
+  const handlePayBill = (billId: string) => {
+    setBilling(prev => prev.map(b => 
+      b.id === billId ? { ...b, status: 'paid' } : b
+    ));
   };
 
-  const handleCompleteAppt = async (apptId: number) => {
-    if (!token) return;
-    try {
-      const res = await fetch(`/api/appointments/${apptId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: 'completed' })
-      });
-      if (res.ok) {
-        if (selectedPatientId) {
-          fetchHistory(selectedPatientId);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
+  const handleCompleteAppt = (apptId: string) => {
+    setAppointments(prev => prev.map(a => 
+      a.id === apptId ? { ...a, status: 'completed' } : a
+    ));
   };
 
   const filteredPatients = patients.filter(p => {
     const query = search.toLowerCase();
-    const fullName = `${p.first_name} ${p.last_name}`.toLowerCase();
+    const fullName = `${p.firstName} ${p.lastName}`.toLowerCase();
     return fullName.includes(query) || 
            p.id.toString().includes(query) || 
-           (p.blood_group || '').toLowerCase().includes(query) ||
+           (p.bloodGroup || '').toLowerCase().includes(query) ||
            (p.status || '').toLowerCase().includes(query);
   });
 
@@ -440,16 +331,16 @@ export default function Patients() {
                 "w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm transition-colors",
                 selectedPatientId === p.id ? "bg-primary-600 text-white" : "bg-slate-100 text-slate-500"
               )}>
-                {p.first_name.charAt(0)}{p.last_name.charAt(0)}
+                {p.firstName?.charAt(0)}{p.lastName?.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-0.5">
-                  <h4 className="font-bold text-slate-800 text-sm truncate">{p.first_name} {p.last_name}</h4>
-                  <span className="text-[10px] font-mono text-slate-400 font-bold tracking-tighter">#{p.id.toString().padStart(4, '0')}</span>
+                  <h4 className="font-bold text-slate-800 text-sm truncate">{p.firstName} {p.lastName}</h4>
+                  <span className="text-[10px] font-mono text-slate-400 font-bold tracking-tighter">#{p.id.toString().substring(0, 6).toUpperCase()}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <StatusBadge status={p.status} />
-                  <span className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{p.blood_group || 'N/A'}</span>
+                  <span className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{p.bloodGroup || 'N/A'}</span>
                 </div>
               </div>
               <ChevronRight className={cn("w-4 h-4 transition-all opacity-0 group-hover:opacity-100", selectedPatientId === p.id ? "text-primary-600 opacity-100 translate-x-1" : "text-slate-300")} />
@@ -509,19 +400,19 @@ export default function Patients() {
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                   <div className="flex items-center gap-6">
                     <div className="w-20 h-20 bg-primary-600 rounded-3xl flex items-center justify-center text-white text-3xl font-bold shadow-xl shadow-primary-500/30">
-                      {history.patient.first_name.charAt(0)}{history.patient.last_name.charAt(0)}
+                      {history.patient.firstName.charAt(0)}{history.patient.lastName.charAt(0)}
                     </div>
                     <div>
                       <div className="flex items-center gap-3 mb-1">
                         <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-none">
-                          {history.patient.first_name} {history.patient.last_name}
+                          {history.patient.firstName} {history.patient.lastName}
                         </h2>
                         <StatusBadge status={history.patient.status} />
                       </div>
                       <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs font-bold text-slate-400 mt-2 uppercase tracking-wide">
                         <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary-500" /> {history.patient.address}</span>
                         <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-primary-500" /> {history.patient.contact}</span>
-                        <span className="text-primary-600">MRN: {history.patient.id.toString().padStart(6, '0')}</span>
+                        <span className="text-primary-600">MRN: {history.patient.id.toString().substring(0, 8).toUpperCase()}</span>
                       </div>
                     </div>
                   </div>
@@ -569,7 +460,7 @@ export default function Patients() {
                              <Phone className="w-3 h-3" /> Emergency Contact
                           </p>
                           <p className="text-sm font-black text-rose-800 tracking-tight">
-                            {history.patient.emergency_contact || 'None Recorded'}
+                            {history.patient.emergencyContact || 'None Recorded'}
                           </p>
                         </div>
                       </div>
@@ -657,7 +548,7 @@ export default function Patients() {
                       <div className="relative border-l-2 border-slate-100 ml-5 pl-10 space-y-12">
                         {history.records.length === 0 ? (
                           <div className="text-slate-300 text-sm py-12 italic font-medium">Nexus EMR initialized: No previous clinical records detected.</div>
-                        ) : [...history.records].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((record) => (
+                        ) : [...history.records].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((record) => (
                           <div key={record.id} className="relative">
                             <div className="absolute -left-[51px] top-4 w-6 h-6 bg-white border-4 border-primary-500 rounded-full z-10 shadow-sm shadow-primary-500/20"></div>
                             <div className="bg-white border border-slate-100 rounded-[2rem] p-8 shadow-[0_4px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_10px_40px_rgb(0,0,0,0.04)] transition-all duration-300">
@@ -666,7 +557,7 @@ export default function Patients() {
                                   <span className="text-[10px] font-bold text-primary-600 uppercase tracking-widest block mb-2">Diagnosis</span>
                                   <h5 className="font-black text-slate-900 text-2xl tracking-tighter decoration-primary-500 underline underline-offset-4 decoration-2">{record.diagnosis}</h5>
                                   <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2 mt-4">
-                                    <Clock className="w-3.5 h-3.5" /> Session Date: {new Date(record.created_at).toLocaleDateString()}
+                                    <Clock className="w-3.5 h-3.5" /> Session Date: {new Date(record.createdAt).toLocaleDateString()}
                                   </p>
                                 </div>
                                 <div className="md:text-right flex items-center gap-4 bg-slate-50 p-4 rounded-3xl border border-slate-100">
@@ -675,26 +566,26 @@ export default function Patients() {
                                    </div>
                                    <div className="text-left">
                                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Medical Officer</p>
-                                      <p className="text-xs font-bold text-slate-800">Dr. Bob Smith (Consultant)</p>
+                                      <p className="text-xs font-bold text-slate-800">Assigned Practitioner</p>
                                    </div>
                                 </div>
                               </div>
                               
-                              {record.clinical_history && (
+                              {record.clinicalHistory && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10">
                                   <div className="space-y-6">
                                     <div>
                                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">History of Presenting Complaint</p>
-                                      <p className="text-sm text-slate-700 leading-relaxed font-semibold italic border-l-4 border-slate-200 pl-4 py-1">"{record.clinical_history.presenting_complaint}"</p>
+                                      <p className="text-sm text-slate-700 leading-relaxed font-semibold italic border-l-4 border-slate-200 pl-4 py-1">"{record.clinicalHistory.presentingComplaint}"</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-6">
                                       <div>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Family History</p>
-                                        <p className="text-xs font-bold text-slate-600 leading-normal">{record.clinical_history.family_history || 'N/A'}</p>
+                                        <p className="text-xs font-bold text-slate-600 leading-normal">{record.clinicalHistory.familyHistory || 'N/A'}</p>
                                       </div>
                                       <div>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Social History</p>
-                                        <p className="text-xs font-bold text-slate-600 leading-normal">{record.clinical_history.social_history || 'N/A'}</p>
+                                        <p className="text-xs font-bold text-slate-600 leading-normal">{record.clinicalHistory.socialHistory || 'N/A'}</p>
                                       </div>
                                     </div>
                                   </div>
@@ -705,15 +596,15 @@ export default function Patients() {
                                     <div className="grid grid-cols-3 gap-4">
                                        <div className="text-center group">
                                          <p className="text-[9px] text-slate-500 uppercase font-black mb-1 group-hover:text-primary-400 transition-colors">BP (Sys/Dia)</p>
-                                         <p className="text-lg font-black text-white font-mono tracking-tighter">{record.clinical_history.vitals.bp}</p>
+                                         <p className="text-lg font-black text-white font-mono tracking-tighter">{record.clinicalHistory.vitals.bp}</p>
                                        </div>
                                        <div className="text-center border-x border-slate-800 px-2 group">
                                          <p className="text-[9px] text-slate-500 uppercase font-black mb-1 group-hover:text-primary-400 transition-colors">Temp (°C)</p>
-                                         <p className="text-lg font-black text-white font-mono tracking-tighter">{record.clinical_history.vitals.temp}</p>
+                                         <p className="text-lg font-black text-white font-mono tracking-tighter">{record.clinicalHistory.vitals.temp}</p>
                                        </div>
                                        <div className="text-center group">
                                          <p className="text-[9px] text-slate-500 uppercase font-black mb-1 group-hover:text-primary-400 transition-colors">Pulse (BPM)</p>
-                                         <p className="text-lg font-black text-white font-mono tracking-tighter">{record.clinical_history.vitals.pulse}</p>
+                                         <p className="text-lg font-black text-white font-mono tracking-tighter">{record.clinicalHistory.vitals.pulse}</p>
                                        </div>
                                     </div>
                                   </div>
@@ -822,16 +713,15 @@ export default function Patients() {
                             <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest">Issue Date</th>
                             <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest text-right">Value (Birr)</th>
                             <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Status</th>
-                            <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest text-right">Action</th>
-                          </tr>
+                            <th className="px-8 py-5 font-black text-slate-400 uppercase text-[10px] tracking-widest text-right">Action</th>                          </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                          {history.billing.length === 0 ? (
+                           {history.billing.length === 0 ? (
                             <tr><td colSpan={5} className="px-8 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[11px] italic">No financial transactions detected</td></tr>
-                          ) : [...history.billing].sort((a,b) => new Date(b.issued_date).getTime() - new Date(a.issued_date).getTime()).map(bill => (
+                          ) : [...history.billing].sort((a,b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime()).map(bill => (
                             <tr key={bill.id} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="px-8 py-6 font-mono font-black text-slate-900 text-xs tracking-tighter">#NEX-{bill.id.toString().padStart(6, '0')}</td>
-                              <td className="px-8 py-6 font-bold text-slate-500">{new Date(bill.issued_date).toLocaleDateString()}</td>
+                              <td className="px-8 py-6 font-mono font-black text-slate-900 text-xs tracking-tighter">#NEX-{bill.id.toString().substring(0, 6).toUpperCase()}</td>
+                              <td className="px-8 py-6 font-bold text-slate-500">{new Date(bill.issuedDate).toLocaleDateString()}</td>
                               <td className="px-8 py-6 text-right font-black text-slate-900 font-mono text-base tracking-tighter">
                                 {FormatCurrency(bill.amount)}
                               </td>

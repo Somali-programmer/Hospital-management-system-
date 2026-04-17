@@ -2,11 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserPlus, CreditCard, ChevronRight, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { 
+  MOCK_PATIENTS, 
+  MOCK_BILLING,
+  Patient,
+  Billing as Bill
+} from '../../lib/mockData';
 
 export default function ReceptionistDashboard() {
-  const { token } = useAuth();
-  const [patients, setPatients] = useState<any[]>([]);
-  const [bills, setBills] = useState<any[]>([]);
+  const [patients, setPatients] = useState<Patient[]>(MOCK_PATIENTS);
+  const [bills, setBills] = useState<Bill[]>(MOCK_BILLING);
   
   // Forms
   const [fName, setFName] = useState('');
@@ -14,39 +19,34 @@ export default function ReceptionistDashboard() {
   const [dob, setDob] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    const headers = { 'Authorization': `Bearer ${token}` };
-    const [pats, bs] = await Promise.all([
-      fetch('/api/patients', { headers }).then(r => r.json()),
-      fetch('/api/billing', { headers }).then(r => r.json()),
-    ]);
-    setPatients(pats);
-    setBills(bs);
-  };
-
   const handleRegisterPatient = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await fetch('/api/patients', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ first_name: fName, last_name: lName, dob })
-    });
+    
+    // Simulate registration
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    const newPatient: Patient = {
+      id: `P-${Math.random().toString(36).substr(2, 9)}`,
+      firstName: fName,
+      lastName: lName,
+      dob,
+      gender: 'Other', // Mocking
+      contact: '000-000-0000',
+      address: 'Addis Ababa',
+      status: 'active',
+      createdAt: new Date().toISOString()
+    };
+
+    setPatients(prev => [...prev, newPatient]);
     setFName(''); setLName(''); setDob('');
     setIsSubmitting(false);
-    fetchData();
   };
 
-  const handlePayBill = async (id: number) => {
-    await fetch(`/api/billing/${id}/pay`, {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    fetchData();
+  const handlePayBill = (id: string) => {
+    setBills(prev => prev.map(b => 
+      b.id === id ? { ...b, status: 'paid' as const } : b
+    ));
   };
 
   return (
@@ -70,20 +70,20 @@ export default function ReceptionistDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="header-label mb-1.5 block">First Name</label>
-              <input required type="text" placeholder="John" value={fName} onChange={e=>setFName(e.target.value)} className="input-field"/>
+              <input required type="text" placeholder="John" value={fName} onChange={e=>setFName(e.target.value)} className="input-field border py-2 px-3 rounded-md w-full focus:ring-2 focus:ring-blue-500 outline-none"/>
             </div>
             <div>
               <label className="header-label mb-1.5 block">Last Name</label>
-              <input required type="text" placeholder="Doe" value={lName} onChange={e=>setLName(e.target.value)} className="input-field"/>
+              <input required type="text" placeholder="Doe" value={lName} onChange={e=>setLName(e.target.value)} className="input-field border py-2 px-3 rounded-md w-full focus:ring-2 focus:ring-blue-500 outline-none"/>
             </div>
           </div>
           <div>
             <label className="header-label mb-1.5 block">Date of Birth</label>
-            <input required type="date" value={dob} onChange={e=>setDob(e.target.value)} className="input-field text-slate-700"/>
+            <input required type="date" value={dob} onChange={e=>setDob(e.target.value)} className="input-field border py-2 px-3 rounded-md w-full focus:ring-2 focus:ring-blue-500 outline-none text-slate-700"/>
           </div>
           
           <div className="pt-2">
-            <button type="submit" disabled={isSubmitting} className="w-full btn-primary py-3.5 flex justify-center gap-2 items-center">
+            <button type="submit" disabled={isSubmitting} className="w-full btn-primary py-3.5 flex justify-center gap-2 items-center bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50">
               {isSubmitting ? 'Registering...' : 'Register Patient File'}
             </button>
           </div>
@@ -94,13 +94,13 @@ export default function ReceptionistDashboard() {
             Recent Intakes 
           </h3>
           <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
-            {patients.slice().reverse().map((p, idx) => (
+            {patients.slice(-5).reverse().map((p, idx) => (
               <div key={p.id} className="group flex justify-between items-center py-2 px-3 hover:bg-slate-50 rounded-xl border border-transparent hover:border-slate-200 transition-all cursor-pointer">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold text-xs flex items-center justify-center">
-                    {p.first_name.charAt(0)}{p.last_name.charAt(0)}
+                    {p.firstName?.charAt(0)}{p.lastName?.charAt(0)}
                   </div>
-                  <span className="font-bold text-slate-700 text-sm">{p.first_name} {p.last_name}</span>
+                  <span className="font-bold text-slate-700 text-sm">{p.firstName} {p.lastName}</span>
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-slate-400 text-xs font-mono font-medium">{p.dob}</span>
@@ -128,8 +128,8 @@ export default function ReceptionistDashboard() {
         
         <div className="space-y-4">
           {bills.map((bill, index) => {
-            const patientName = patients.find(p => p.id === bill.patient_id);
-            const fullName = patientName ? `${patientName.first_name} ${patientName.last_name}` : `Patient #${bill.patient_id}`;
+            const patient = patients.find(p => p.id === bill.patientId);
+            const fullName = patient ? `${patient.firstName} ${patient.lastName}` : `Patient #${bill.patientId}`;
             const isPaid = bill.status === 'paid';
             
             return (
@@ -144,14 +144,14 @@ export default function ReceptionistDashboard() {
                     <div>
                       <p className="font-bold text-slate-800 text-base">{fullName}</p>
                       <p className="text-xs font-semibold text-slate-500 mt-1 flex items-center gap-2">
-                        <span>INV-{bill.id.toString().padStart(4, '0')}</span>
+                        <span>INV-{bill.id.substring(0,6).toUpperCase()}</span>
                         <span>•</span>
-                        <span>{format(new Date(bill.issued_date), 'MMM do, yyyy')}</span>
+                        <span>{bill.issuedDate ? format(new Date(bill.issuedDate), 'MMM do, yyyy') : 'No Date'}</span>
                       </p>
                     </div>
                   </div>
                   <div className="text-right flex flex-col items-end">
-                    <p className="font-bold text-slate-800 text-xl tracking-tight">ETB {bill.amount.toFixed(2)}</p>
+                    <p className="font-bold text-slate-800 text-xl tracking-tight">ETB {bill.amount?.toFixed(2)}</p>
                     <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md mt-1 border ${
                       isPaid ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200' : 'bg-orange-100/50 text-orange-700 border-orange-200'
                     }`}>

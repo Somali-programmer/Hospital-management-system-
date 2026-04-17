@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Users, FileText, Activity, DollarSign, TrendingUp, BarChart2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
+import { MOCK_PATIENTS, MOCK_APPOINTMENTS, MOCK_RECORDS, MOCK_BILLING } from '../../lib/mockData';
 
 const mockChartData = [
   { name: 'Mon', revenue: 4000, patients: 24 },
@@ -14,31 +15,12 @@ const mockChartData = [
 ];
 
 export default function AdminDashboard() {
-  const { token } = useAuth();
-  const [stats, setStats] = useState({ patients: 0, appointments: 0, records: 0, bills: 0 });
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const headers = { 'Authorization': `Bearer ${token}` };
-        const [patients, appts, records, bills] = await Promise.all([
-          fetch('/api/patients', { headers }).then(r => r.json()),
-          fetch('/api/appointments', { headers }).then(r => r.json()),
-          fetch('/api/records', { headers }).then(r => r.json()),
-          fetch('/api/billing', { headers }).then(r => r.json()),
-        ]);
-        setStats({
-          patients: patients.length,
-          appointments: appts.length,
-          records: records.length,
-          bills: bills.length 
-        });
-      } catch (err) {
-        console.error("Failed to fetch admin stats", err);
-      }
-    };
-    fetchData();
-  }, [token]);
+  const [stats, setStats] = useState({ 
+    patients: MOCK_PATIENTS.length, 
+    appointments: MOCK_APPOINTMENTS.length, 
+    records: MOCK_RECORDS.length, 
+    bills: MOCK_BILLING.length 
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">

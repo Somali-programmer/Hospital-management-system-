@@ -2,13 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Calendar, User, FileEdit, CheckCircle, Activity, ClipboardList, Clock, History, FileText, Bold, Italic, List, X, File } from 'lucide-react';
 import { format } from 'date-fns';
+import { 
+  MOCK_PATIENTS, 
+  MOCK_APPOINTMENTS, 
+  MOCK_RECORDS, 
+  MOCK_BILLING,
+  Patient,
+  Appointment,
+  MedicalRecord,
+  Billing as Bill
+} from '../../lib/mockData';
 
 export default function DoctorDashboard() {
-  const { token } = useAuth();
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [patients, setPatients] = useState<any[]>([]);
+  const { profile } = useAuth();
+  const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
+  const [patients] = useState<Patient[]>(MOCK_PATIENTS);
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>(MOCK_RECORDS);
+  const [billing, setBilling] = useState<Bill[]>(MOCK_BILLING);
   
-  const [selectedAppt, setSelectedAppt] = useState<any>(null);
+  const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
   const [activeTab, setActiveTab] = useState<'emr' | 'history'>('emr');
   
   const [diagnosis, setDiagnosis] = useState('');
@@ -18,10 +30,6 @@ export default function DoctorDashboard() {
   const [isSaving, setIsSaving] = useState(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   // Mock auto-save logic
   useEffect(() => {
@@ -37,36 +45,50 @@ export default function DoctorDashboard() {
     }
   }, [diagnosis, prescription, selectedAppt, activeTab]);
 
-  const fetchData = async () => {
-    const headers = { 'Authorization': `Bearer ${token}` };
-    const [appts, pats] = await Promise.all([
-      fetch('/api/appointments', { headers }).then(r => r.json()),
-      fetch('/api/patients', { headers }).then(r => r.json()),
-    ]);
-    setAppointments(appts);
-    setPatients(pats);
-  };
-
   const handleEMRSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!profile || !selectedAppt) return;
     setIsSaving(true);
-    await fetch('/api/records', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        patient_id: selectedAppt.patient_id,
-        appointment_id: selectedAppt.id,
-        diagnosis,
-        prescription,
-        generateBillAmount: generateBill ? 1200 : null
-      })
-    });
     
-    await fetch(`/api/appointments/${selectedAppt.id}/status`, {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'completed' })
-    });
+    // Simulate save
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    const newRecord: MedicalRecord = {
+      id: `R-${Math.random().toString(36).substr(2, 9)}`,
+      patientId: selectedAppt.patientId,
+      doctorId: profile.id,
+      appointmentId: selectedAppt.id,
+      diagnosis,
+      prescription,
+      createdAt: new Date().toISOString(),
+      clinicalHistory: {
+        presentingComplaint: diagnosis, // Mocking
+        familyHistory: '',
+        socialHistory: '',
+        vitals: { bp: '120/80', temp: '37', pulse: '72' }
+      }
+    };
+
+    setMedicalRecords(prev => [...prev, newRecord]);
+    
+    // Mark appt as completed
+    setAppointments(prev => prev.map(a => 
+      a.id === selectedAppt.id ? { ...a, status: 'completed' as const } : a
+    ));
+
+    // Auto-bill if checked
+    if (generateBill) {
+      const newBill: Bill = {
+        id: `B-${Math.random().toString(36).substr(2, 9)}`,
+        patientId: selectedAppt.patientId,
+        appointmentId: selectedAppt.id,
+        amount: 1200,
+        status: 'unpaid',
+        issuedDate: new Date().toISOString(),
+        currency: 'ETB'
+      };
+      setBilling(prev => [...prev, newBill]);
+    }
 
     setDiagnosis('');
     setPrescription('');
@@ -75,12 +97,11 @@ export default function DoctorDashboard() {
     setGenerateBill(false);
     setIsSaving(false);
     setAutoSaveStatus('idle');
-    fetchData();
   };
 
-  const getPatientName = (id: number) => {
+  const getPatientName = (id: string) => {
     const p = patients.find(p => p.id === id);
-    return p ? `${p.first_name} ${p.last_name}` : `ID: ${id}`;
+    return p ? `${p.firstName} ${p.lastName}` : `ID: ${id}`;
   };
 
   return (
@@ -111,10 +132,10 @@ export default function DoctorDashboard() {
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
                     appt.status === 'completed' ? 'bg-slate-100 text-slate-400' : 'bg-primary-100 text-primary-700'
                   }`}>
-                    {getPatientName(appt.patient_id).charAt(0)}
+                    {getPatientName(appt.patientId).charAt(0)}
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-bold text-slate-800 text-base">{getPatientName(appt.patient_id)}</span>
+                    <span className="font-bold text-slate-800 text-base">{getPatientName(appt.patientId)}</span>
                     <span className="text-sm text-slate-500 font-medium flex items-center gap-1.5 mt-0.5">
                       <Activity className="w-3.5 h-3.5 text-primary-500" />
                       {format(new Date(appt.date), 'h:mm a')} • Standard Consult
@@ -161,7 +182,7 @@ export default function DoctorDashboard() {
                   <div>
                     <h3 className="font-bold text-slate-800 text-lg leading-tight">Patient File</h3>
                     <p className="text-[10px] font-bold text-primary-600 uppercase tracking-widest mt-0.5 truncate max-w-[140px]">
-                      {getPatientName(selectedAppt.patient_id)}
+                      {getPatientName(selectedAppt.patientId)}
                     </p>
                   </div>
                 </div>
@@ -279,8 +300,8 @@ export default function DoctorDashboard() {
                 </form>
               ) : (
                 <div className="space-y-4">
-                  {appointments.filter(a => a.patient_id === selectedAppt.patient_id && a.status === 'completed').length > 0 ? (
-                    appointments.filter(a => a.patient_id === selectedAppt.patient_id && a.status === 'completed').map((a, idx) => (
+                  {appointments.filter(a => a.patientId === selectedAppt.patientId && a.status === 'completed').length > 0 ? (
+                    appointments.filter(a => a.patientId === selectedAppt.patientId && a.status === 'completed').map((a, idx) => (
                       <div key={idx} className="p-4 bg-white border border-slate-200 rounded-xl hover:border-primary-200 hover:shadow-md transition-all cursor-pointer group">
                         <div className="flex justify-between items-center mb-3">
                            <span className="text-sm font-bold text-slate-800">{format(new Date(a.date), 'MMM do, yyyy')}</span>
@@ -288,7 +309,7 @@ export default function DoctorDashboard() {
                         </div>
                         <div className="text-xs font-medium text-slate-500 space-y-1.5 flex flex-col">
                            <span className="flex items-center gap-1.5 group-hover:text-primary-600 transition-colors"><FileText className="w-3.5 h-3.5"/> Standard Consultation</span>
-                           <span className="flex items-center gap-1.5 pl-5 text-slate-400">Dr. {a.doctor_id}</span>
+                           <span className="flex items-center gap-1.5 pl-5 text-slate-400">Dr. {a.doctorId}</span>
                         </div>
                       </div>
                     ))
@@ -326,7 +347,7 @@ export default function DoctorDashboard() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800">Complete Medical History</h3>
-                  <p className="text-xs text-slate-500 font-medium">Patient: {getPatientName(selectedAppt.patient_id)}</p>
+                  <p className="text-xs text-slate-500 font-medium">Patient: {getPatientName(selectedAppt.patientId)}</p>
                 </div>
               </div>
               <button 
@@ -339,8 +360,8 @@ export default function DoctorDashboard() {
             
             <div className="flex-1 overflow-y-auto p-6 bg-slate-50 custom-scrollbar">
               <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
-                {appointments.filter(a => a.patient_id === selectedAppt.patient_id && a.status === 'completed').length > 0 ? (
-                  appointments.filter(a => a.patient_id === selectedAppt.patient_id && a.status === 'completed').map((a, idx) => (
+                {appointments.filter(a => a.patientId === selectedAppt.patientId && a.status === 'completed').length > 0 ? (
+                  appointments.filter(a => a.patientId === selectedAppt.patientId && a.status === 'completed').map((a, idx) => (
                     <div key={idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                       <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-primary-100 text-primary-600 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
                         <CheckCircle className="w-4 h-4" />
@@ -348,7 +369,7 @@ export default function DoctorDashboard() {
                       <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-primary-200 transition-all">
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-bold text-slate-800">{format(new Date(a.date), 'MMMM do, yyyy')}</span>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Dr. {a.doctor_id}</span>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Dr. {a.doctorId}</span>
                         </div>
                         <div className="space-y-3 mt-3">
                           <div>

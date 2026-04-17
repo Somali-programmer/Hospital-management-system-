@@ -11,15 +11,28 @@ interface DocsData {
   flow: string[];
 }
 
-export default function Docs() {
-  const [data, setData] = useState<DocsData | null>(null);
+const ARCHITECTURE_DATA: DocsData = {
+  decomposition: {
+    presentation: "React.js Dashboards. Role-specific views (Admin, Doctor, Receptionist) with React Router & TailwindCSS.",
+    application: "Firebase Serverless Architecture. Logic handled by Firebase Authentication & Client-side Firestore SDK.",
+    data: "Google Firestore (NoSQL). Real-time document database with granular Security Rules and Collections."
+  },
+  dataDictionary: [
+    { table: 'users (Collection)', columns: 'uid (PK), name, role (admin/doctor/receptionist), email, status' },
+    { table: 'patients (Collection)', columns: 'id (PK), firstName, lastName, dob, gender, contact, address, bloodGroup, allergies, status, emergencyContact' },
+    { table: 'appointments (Collection)', columns: 'id (PK), patientId (FK), doctorId (FK), date, status (scheduled/completed), notes' },
+    { table: 'medical_records (Collection)', columns: 'id (PK), patientId (FK), doctorId (FK), clinicalHistory (JSON map), diagnosis, prescription, createdAt' },
+    { table: 'billing (Collection)', columns: 'id (PK), patientId (FK), amount, status (paid/unpaid), issuedDate, currency (ETB)' }
+  ],
+  flow: [
+    "1. Receptionist: Logs in via Firebase Auth > Registers Patient in Firestore > Books Appointment session.",
+    "2. Doctor: Authenticates > Real-time view of Appointments > Conducts consult > Finalizes EMR in Medical Records collection.",
+    "3. Billing: Automated trigger on EMR creation > Receptionist monitors specific patient ledger for real-time payment status."
+  ]
+};
 
-  useEffect(() => {
-    fetch('/api/docs/architecture')
-      .then(res => res.json())
-      .then(setData)
-      .catch(console.error);
-  }, []);
+export default function Docs() {
+  const [data] = useState<DocsData | null>(ARCHITECTURE_DATA);
 
   if (!data) return <div className="p-8 text-center text-slate-500 animate-pulse font-medium">Loading Architecture Specs...</div>;
 

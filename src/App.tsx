@@ -10,14 +10,18 @@ import Placeholder from './pages/Placeholder.tsx';
 
 // --- PROTECTED ROUTE ---
 function RequireAuth({ children, roles }: { children: React.ReactNode, roles?: string[] }) {
-  const auth = useAuth();
+  const { user, profile, loading, isAuthReady } = useAuth();
   const location = useLocation();
 
-  if (!auth.token || !auth.user) {
+  if (!isAuthReady || loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (roles && !roles.includes(auth.user.role)) {
+  if (profile && roles && !roles.includes(profile.role)) {
     return <Navigate to="/dashboard" replace />;
   }
 

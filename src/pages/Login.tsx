@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { Shield, User, Loader2 } from 'lucide-react';
 
 export default function Login() {
-  const { login } = useAuth();
   const navigate = useNavigate();
+  const { login } = useAuth();
   
   const [username, setUsername] = useState('admin1');
   const [password, setPassword] = useState('password');
@@ -18,31 +18,11 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-
-      if (!response.ok) {
-        let msg = 'Invalid credentials';
-        const text = await response.text();
-        try {
-          const errData = JSON.parse(text);
-          if (errData.error) msg = errData.error;
-          else if (errData.details) msg = `Error: ${errData.details}`;
-        } catch {
-          // If not JSON, show the status and first few characters of the response
-          msg = `Server Error: ${response.status}. Response: ${text.substring(0, 100)}...`;
-        }
-        throw new Error(msg);
-      }
-
-      const data = await response.json();
-      login(data.token, data.user);
+      await login(username);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message);
+      console.error("Login detail error:", err);
+      setError("Invalid login simulation.");
     } finally {
       setLoading(false);
     }
