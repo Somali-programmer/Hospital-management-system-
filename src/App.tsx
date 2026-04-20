@@ -1,11 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import React from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { DataProvider } from './contexts/DataContext';
 import Login from './pages/Login.tsx';
 import MainLayout from './layouts/MainLayout.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import Docs from './pages/Docs.tsx';
 import Patients from './pages/Patients.tsx';
+import Appointments from './pages/Appointments.tsx';
+import Doctors from './pages/Doctors.tsx';
+import Pharmacy from './pages/Pharmacy.tsx';
+import Laboratory from './pages/Laboratory.tsx';
+import Billing from './pages/Billing.tsx';
+import Reports from './pages/Reports.tsx';
+import Settings from './pages/Settings.tsx';
 import Placeholder from './pages/Placeholder.tsx';
 
 // --- PROTECTED ROUTE ---
@@ -32,20 +40,29 @@ function RequireAuth({ children, roles }: { children: React.ReactNode, roles?: s
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        
-        <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/docs" element={<RequireAuth roles={['admin']}><Docs /></RequireAuth>} />
-          <Route path="/patients" element={<Patients />} />
-          <Route path="/appointments" element={<Placeholder title="Clinic Appointments" />} />
-          <Route path="/billing" element={<RequireAuth roles={['admin', 'receptionist']}><Placeholder title="Financial Billing" /></RequireAuth>} />
-        </Route>
-        
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+      <AuthProvider>
+        <DataProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            
+            <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/docs" element={<RequireAuth roles={['admin']}><Docs /></RequireAuth>} />
+              <Route path="/patients" element={<Patients />} />
+              <Route path="/appointments" element={<Appointments />} />
+              <Route path="/doctors" element={<Doctors />} />
+              <Route path="/pharmacy" element={<Pharmacy />} />
+              <Route path="/laboratory" element={<Laboratory />} />
+              <Route path="/billing" element={<Billing />} />
+              <Route path="/reports" element={<RequireAuth roles={['admin']}><Reports /></RequireAuth>} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
+            
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </DataProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

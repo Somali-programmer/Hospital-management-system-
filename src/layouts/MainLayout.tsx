@@ -2,7 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Outlet, Link, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { LayoutDashboard, FileText, LogOut, Building, Menu, X, Search, Bell, User as UserIcon, Calendar } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  FileText, 
+  LogOut, 
+  Building, 
+  Menu, 
+  X, 
+  Search, 
+  Bell, 
+  User as UserIcon, 
+  Calendar,
+  Stethoscope,
+  Pill,
+  Microscope,
+  CreditCard,
+  BarChart3,
+  Settings as SettingsIcon,
+  Plus
+} from 'lucide-react';
 
 export default function MainLayout() {
   const { user, logout } = useAuth();
@@ -21,10 +39,15 @@ export default function MainLayout() {
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'doctor', 'receptionist'] },
-    { name: 'Patient Records', path: '/patients', icon: UserIcon, roles: ['admin', 'doctor', 'receptionist'] },
+    { name: 'Patients', path: '/patients', icon: UserIcon, roles: ['admin', 'doctor', 'receptionist'] },
     { name: 'Appointments', path: '/appointments', icon: Calendar, roles: ['admin', 'doctor', 'receptionist'] },
-    { name: 'Billing & Invoices', path: '/billing', icon: Bell, roles: ['admin', 'receptionist'] },
-    { name: 'System Architecture', path: '/docs', icon: FileText, roles: ['admin'] },
+    { name: 'Doctors', path: '/doctors', icon: Stethoscope, roles: ['admin', 'receptionist', 'doctor'] },
+    { name: 'Pharmacy', path: '/pharmacy', icon: Pill, roles: ['admin', 'doctor', 'receptionist'] },
+    { name: 'Laboratory', path: '/laboratory', icon: Microscope, roles: ['admin', 'doctor', 'receptionist'] },
+    { name: 'Billing', path: '/billing', icon: CreditCard, roles: ['admin', 'receptionist'] },
+    { name: 'Reports', path: '/reports', icon: BarChart3, roles: ['admin'] },
+    { name: 'Settings', path: '/settings', icon: SettingsIcon, roles: ['admin', 'doctor', 'receptionist'] },
+    { name: 'System Docs', path: '/docs', icon: FileText, roles: ['admin'] },
   ];
 
   const filteredNavItems = navItems.filter(item => 

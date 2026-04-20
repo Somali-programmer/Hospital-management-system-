@@ -85,7 +85,9 @@ export default function DoctorDashboard() {
         amount: 1200,
         status: 'unpaid',
         issuedDate: new Date().toISOString(),
-        currency: 'ETB'
+        currency: 'ETB',
+        type: 'consultation',
+        description: 'Doctor Consultation'
       };
       setBilling(prev => [...prev, newBill]);
     }

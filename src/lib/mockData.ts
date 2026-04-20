@@ -24,13 +24,42 @@ export interface Appointment {
   notes: string;
 }
 
+export interface Prescription {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  recordId?: string;
+  medicines: {
+    medicineId: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+  }[];
+  date: string;
+  status: 'pending' | 'dispensed' | 'cancelled';
+}
+
+export interface Billing {
+  id: string;
+  patientId: string;
+  appointmentId?: string;
+  type: 'consultation' | 'laboratory' | 'pharmacy' | 'registration' | 'other';
+  amount: number;
+  status: 'paid' | 'unpaid';
+  issuedDate: string;
+  currency: string;
+  description?: string;
+}
+
 export interface MedicalRecord {
   id: string;
   patientId: string;
   doctorId: string;
   appointmentId?: string;
   diagnosis: string;
-  prescription: string;
+  prescription: string; // Keep as string for summary
+  structuredPrescriptionId?: string;
+  labTestIds?: string[];
   createdAt: string;
   clinicalHistory: {
     presentingComplaint: string;
@@ -42,16 +71,6 @@ export interface MedicalRecord {
       pulse: string;
     };
   };
-}
-
-export interface Billing {
-  id: string;
-  patientId: string;
-  appointmentId?: string;
-  amount: number;
-  status: 'paid' | 'unpaid';
-  issuedDate: string;
-  currency: string;
 }
 
 export const MOCK_PATIENTS: Patient[] = [
@@ -131,6 +150,67 @@ export const MOCK_APPOINTMENTS: Appointment[] = [
   { id: 'A006', patientId: 'P001', doctorId: 'D001', date: '2026-04-25T10:00:00Z', status: 'scheduled', notes: 'Follow-up BP check' },
 ];
 
+export interface Doctor {
+  id: string;
+  name: string;
+  specialization: string;
+  contact: string;
+  status: 'active' | 'on-leave' | 'inactive';
+  availability?: string;
+}
+
+export interface Medicine {
+  id: string;
+  name: string;
+  category: string;
+  stock: number;
+  price: number;
+  expiryDate: string;
+  unit: string;
+}
+
+export interface LabTest {
+  id: string;
+  patientId: string;
+  testName: string;
+  requestedBy: string;
+  status: 'pending' | 'completed';
+  result?: string;
+  requestDate: string;
+}
+
+export interface Staff {
+  id: string;
+  name: string;
+  role: 'doctor' | 'nurse' | 'receptionist' | 'admin' | 'pharmacist' | 'lab-tech';
+  department: string;
+  contact: string;
+  status: 'active' | 'inactive';
+}
+
+export const MOCK_DOCTORS: Doctor[] = [
+  { id: 'D001', name: 'Dr. Ahmed Hassan', specialization: 'Cardiology', contact: '+251 91 111 2222', status: 'active', availability: 'Mon-Fri' },
+  { id: 'D002', name: 'Dr. Sara Mohamed', specialization: 'Pediatrics', contact: '+251 91 333 4444', status: 'active', availability: 'Mon-Sat' },
+  { id: 'D003', name: 'Dr. Omar Ali', specialization: 'Dermatology', contact: '+251 91 555 6666', status: 'on-leave', availability: 'Resuming next week' },
+];
+
+export const MOCK_MEDICINES: Medicine[] = [
+  { id: 'M001', name: 'Paracetamol', category: 'Analgesic', stock: 500, price: 5.00, expiryDate: '2026-12-01', unit: 'Tablets' },
+  { id: 'M002', name: 'Amoxicillin', category: 'Antibiotic', stock: 200, price: 15.00, expiryDate: '2026-06-15', unit: 'Capsules' },
+  { id: 'M003', name: 'Insulin Glargine', category: 'Antidiabetic', stock: 50, price: 120.00, expiryDate: '2025-10-20', unit: 'Vials' },
+];
+
+export const MOCK_LAB_TESTS: LabTest[] = [
+  { id: 'L001', patientId: 'P001', testName: 'Complete Blood Count (CBC)', requestedBy: 'D001', status: 'completed', result: 'Normal', requestDate: '2026-04-10' },
+  { id: 'L002', patientId: 'P002', testName: 'Lipid Profile', requestedBy: 'D001', status: 'pending', requestDate: '2026-04-18' },
+];
+
+export const MOCK_STAFF: Staff[] = [
+  { id: 'S001', name: 'Ahmed Hassan', role: 'doctor', department: 'Cardiology', contact: '+251 91 111 2222', status: 'active' },
+  { id: 'S002', name: 'Muna Ali', role: 'receptionist', department: 'Front Desk', contact: '+251 91 777 8888', status: 'active' },
+  { id: 'S003', name: 'Hassan Bile', role: 'pharmacist', department: 'Pharmacy', contact: '+251 91 999 0000', status: 'active' },
+];
+
 export const MOCK_RECORDS: MedicalRecord[] = [
   { 
     id: 'R001', 
@@ -165,9 +245,33 @@ export const MOCK_RECORDS: MedicalRecord[] = [
 ];
 
 export const MOCK_BILLING: Billing[] = [
-  { id: 'B001', patientId: 'P001', appointmentId: 'A001', amount: 650.00, status: 'paid', issuedDate: '2026-04-10T10:05:00Z', currency: 'ETB' },
-  { id: 'B002', patientId: 'P002', appointmentId: 'A002', amount: 950.00, status: 'paid', issuedDate: '2026-04-12T11:40:00Z', currency: 'ETB' },
-  { id: 'B003', patientId: 'P003', appointmentId: 'A003', amount: 15400.00, status: 'unpaid', issuedDate: '2026-04-15T16:30:00Z', currency: 'ETB' },
-  { id: 'B004', patientId: 'P004', appointmentId: 'A004', amount: 450.00, status: 'paid', issuedDate: '2026-04-16T12:15:00Z', currency: 'ETB' },
-  { id: 'B005', patientId: 'P005', appointmentId: 'A005', amount: 1200.00, status: 'unpaid', issuedDate: '2026-04-14T10:00:00Z', currency: 'ETB' },
+  { id: 'B001', patientId: 'P001', appointmentId: 'A001', amount: 650.00, status: 'paid', issuedDate: '2026-04-10T10:05:00Z', currency: 'ETB', type: 'consultation', description: 'Initial Cardiology Consultation' },
+  { id: 'B002', patientId: 'P002', appointmentId: 'A002', amount: 950.00, status: 'paid', issuedDate: '2026-04-12T11:40:00Z', currency: 'ETB', type: 'consultation', description: 'General Practice Consultation' },
+  { id: 'B003', patientId: 'P003', appointmentId: 'A003', amount: 15400.00, status: 'unpaid', issuedDate: '2026-04-15T16:30:00Z', currency: 'ETB', type: 'other', description: 'Emergency Abdominal Procedure' },
+  { id: 'B004', patientId: 'P004', appointmentId: 'A004', amount: 450.00, status: 'paid', issuedDate: '2026-04-16T12:15:00Z', currency: 'ETB', type: 'registration', description: 'Annual Health Membership' },
+  { id: 'B005', patientId: 'P005', appointmentId: 'A005', amount: 1200.00, status: 'unpaid', issuedDate: '2026-04-14T10:00:00Z', currency: 'ETB', type: 'consultation', description: 'Endocrinology Review' },
+];
+
+export const MOCK_PRESCRIPTIONS: Prescription[] = [
+  {
+    id: 'PR001',
+    patientId: 'P001',
+    doctorId: 'D001',
+    date: '2026-04-10T10:15:00Z',
+    status: 'dispensed',
+    medicines: [
+      { medicineId: 'M001', dosage: '500mg', frequency: '2x daily', duration: '5 days' }
+    ]
+  },
+  {
+    id: 'PR002',
+    patientId: 'P002',
+    doctorId: 'D001',
+    date: '2026-04-12T11:45:00Z',
+    status: 'pending',
+    medicines: [
+      { medicineId: 'M002', dosage: '1 cap', frequency: '3x daily', duration: '7 days' },
+      { medicineId: 'M001', dosage: '500mg', frequency: '1x daily', duration: '3 days' }
+    ]
+  }
 ];
