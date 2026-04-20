@@ -79,6 +79,8 @@ const LAB_TEST_OPTIONS = [
   'Ultrasound Abdomen'
 ];
 
+import RegistrationModal from '../components/patients/RegistrationModal';
+
 export default function Patients() {
   const { user: currentUser } = useAuth();
   const { 
@@ -134,18 +136,6 @@ export default function Patients() {
   });
 
   const [isRegistering, setIsRegistering] = useState(false);
-  const [regForm, setRegForm] = useState({
-    firstName: '',
-    lastName: '',
-    dob: '',
-    gender: 'M',
-    contact: '',
-    address: '',
-    bloodGroup: 'O+',
-    status: 'active' as const,
-    registrationFee: '200', // Added registration fee field
-    allergies: [] as string[]
-  });
 
   useEffect(() => {
     // Initial load simulation
@@ -329,41 +319,6 @@ export default function Patients() {
 
   const handleCompleteAppt = (apptId: string) => {
     updateAppointment(apptId, { status: 'completed' });
-  };
-
-  const handleRegisterPatient = () => {
-    const { registrationFee, ...patientData } = regForm;
-    const newPatientId = addPatient(patientData);
-    
-    // Auto-generate registration fee bill as requested
-    if (registrationFee && parseFloat(registrationFee) > 0) {
-      addBill({
-        patientId: newPatientId,
-        amount: parseFloat(registrationFee),
-        status: 'unpaid',
-        issuedDate: new Date().toISOString(),
-        currency: 'ETB',
-        type: 'registration',
-        description: 'New Patient Registration Fee'
-      });
-    }
-
-    setIsRegistering(false);
-    setRegForm({
-      firstName: '',
-      lastName: '',
-      dob: '',
-      gender: 'M',
-      contact: '',
-      address: '',
-      bloodGroup: 'O+',
-      status: 'active',
-      registrationFee: '200',
-      allergies: []
-    });
-    
-    // Select the new patient immediately for convenience
-    setSelectedPatientId(newPatientId);
   };
 
   const filteredPatients = patients.filter(p => {
@@ -1413,154 +1368,12 @@ export default function Patients() {
           </div>
         )}
       </AnimatePresence>
-      {/* Patient Registration Modal */}
-      <AnimatePresence>
-        {isRegistering && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsRegistering(false)}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl shadow-black/30 border border-slate-100 flex flex-col"
-            >
-              <div className="p-8 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-                 <div>
-                   <h3 className="text-xl font-bold text-slate-900 tracking-tight">Patient Registration</h3>
-                   <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Receptionist Initial Processing</p>
-                 </div>
-                 <button 
-                   onClick={() => setIsRegistering(false)}
-                   className="p-2.5 hover:bg-slate-200 rounded-xl transition-all"
-                 >
-                   <ArrowLeft className="w-5 h-5 text-slate-400 rotate-180" />
-                 </button>
-              </div>
-
-              <div className="p-8 overflow-y-auto custom-scrollbar space-y-8 bg-white max-h-[70vh]">
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">First Name</label>
-                    <input 
-                      type="text"
-                      placeholder="e.g., Abebe"
-                      value={regForm.firstName}
-                      onChange={e => setRegForm({ ...regForm, firstName: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Last Name</label>
-                    <input 
-                      type="text"
-                      placeholder="e.g., Bikila"
-                      value={regForm.lastName}
-                      onChange={e => setRegForm({ ...regForm, lastName: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Date of Birth</label>
-                    <input 
-                      type="date"
-                      value={regForm.dob}
-                      onChange={e => setRegForm({ ...regForm, dob: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Gender</label>
-                    <select 
-                      value={regForm.gender}
-                      onChange={e => setRegForm({ ...regForm, gender: e.target.value as any })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all"
-                    >
-                      <option value="M">Male</option>
-                      <option value="F">Female</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Contact Number</label>
-                    <input 
-                      type="text"
-                      placeholder="+251 ..."
-                      value={regForm.contact}
-                      onChange={e => setRegForm({ ...regForm, contact: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Blood Group</label>
-                    <select 
-                      value={regForm.bloodGroup}
-                      onChange={e => setRegForm({ ...regForm, bloodGroup: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all"
-                    >
-                      <option value="O+">O+</option>
-                      <option value="A+">A+</option>
-                      <option value="B+">B+</option>
-                      <option value="AB+">AB+</option>
-                      <option value="O-">O-</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Home Address</label>
-                  <textarea 
-                    placeholder="Physical location details..."
-                    value={regForm.address}
-                    onChange={e => setRegForm({ ...regForm, address: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all h-24 resize-none"
-                  />
-                </div>
-
-                <div className="p-6 bg-slate-900 rounded-2xl text-white relative overflow-hidden shadow-xl shadow-slate-900/10">
-                   <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-                   <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                     <CreditCard className="w-3.5 h-3.5" /> Financial Registration Fee
-                   </h4>
-                   <div className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <label className="block text-[9px] font-black text-slate-500 uppercase mb-1.5">Amount Due (ETB)</label>
-                        <input 
-                          type="number"
-                          value={regForm.registrationFee}
-                          onChange={e => setRegForm({ ...regForm, registrationFee: e.target.value })}
-                          className="w-full bg-white/10 border border-white/10 rounded-lg px-4 py-2.5 text-lg font-black text-white focus:outline-none focus:bg-white/20 transition-all font-mono"
-                        />
-                      </div>
-                      <div className="pt-5">
-                         <p className="text-[10px] text-slate-400 font-medium leading-tight">Registration fee is mandatory for new clinical records.</p>
-                      </div>
-                   </div>
-                </div>
-              </div>
-
-              <div className="p-8 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-4">
-                <button 
-                  onClick={() => setIsRegistering(false)}
-                  className="py-3 px-8 text-slate-500 text-[11px] font-black uppercase tracking-widest hover:text-slate-800"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleRegisterPatient}
-                  className="py-4 px-10 bg-primary-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-xl shadow-primary-500/30 hover:bg-primary-700 transition-all active:scale-95"
-                >
-                  Register & Create Invoice
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Modal Replaced with RegistrationModal */}
+      <RegistrationModal 
+        isOpen={isRegistering} 
+        onClose={() => setIsRegistering(false)} 
+        onSuccess={(id) => setSelectedPatientId(id)}
+      />
     </>
   );
 }

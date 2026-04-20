@@ -4,7 +4,7 @@ interface AuthProfile {
   id: string;
   uid: string;
   name: string;
-  role: 'admin' | 'doctor' | 'receptionist';
+  role: 'admin' | 'doctor' | 'receptionist' | 'pharmacist' | 'laboratorian';
   username?: string;
   email: string;
 }
@@ -31,6 +31,8 @@ const DEFAULT_PROFILES: Record<string, AuthProfile> = {
   'admin1': { id: 'U001', uid: 'U001', name: 'Alice Admin', role: 'admin', username: 'admin1', email: 'admin@ahis.com' },
   'doctor1': { id: 'U002', uid: 'U002', name: 'Dr. Bob Smith', role: 'doctor', username: 'doctor1', email: 'doctor@ahis.com' },
   'rec1': { id: 'U003', uid: 'U003', name: 'Carol Reception', role: 'receptionist', username: 'rec1', email: 'receptionist@ahis.com' },
+  'pharm1': { id: 'U004', uid: 'U004', name: 'David Pharmacy', role: 'pharmacist', username: 'pharm1', email: 'pharm@ahis.com' },
+  'lab1': { id: 'U005', uid: 'U005', name: 'Eve Lab', role: 'laboratorian', username: 'lab1', email: 'lab@ahis.com' },
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

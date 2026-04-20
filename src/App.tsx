@@ -14,7 +14,6 @@ import Laboratory from './pages/Laboratory.tsx';
 import Billing from './pages/Billing.tsx';
 import Reports from './pages/Reports.tsx';
 import Settings from './pages/Settings.tsx';
-import Placeholder from './pages/Placeholder.tsx';
 
 // --- PROTECTED ROUTE ---
 function RequireAuth({ children, roles }: { children: React.ReactNode, roles?: string[] }) {
@@ -49,12 +48,12 @@ export default function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/docs" element={<RequireAuth roles={['admin']}><Docs /></RequireAuth>} />
-              <Route path="/patients" element={<Patients />} />
-              <Route path="/appointments" element={<Appointments />} />
-              <Route path="/doctors" element={<Doctors />} />
-              <Route path="/pharmacy" element={<Pharmacy />} />
-              <Route path="/laboratory" element={<Laboratory />} />
-              <Route path="/billing" element={<Billing />} />
+              <Route path="/patients" element={<RequireAuth roles={['admin', 'doctor', 'receptionist', 'pharmacist', 'laboratorian']}><Patients /></RequireAuth>} />
+              <Route path="/appointments" element={<RequireAuth roles={['admin', 'doctor', 'receptionist']}><Appointments /></RequireAuth>} />
+              <Route path="/doctors" element={<RequireAuth roles={['admin', 'receptionist', 'doctor']}><Doctors /></RequireAuth>} />
+              <Route path="/pharmacy" element={<RequireAuth roles={['admin', 'pharmacist']}><Pharmacy /></RequireAuth>} />
+              <Route path="/laboratory" element={<RequireAuth roles={['admin', 'laboratorian']}><Laboratory /></RequireAuth>} />
+              <Route path="/billing" element={<RequireAuth roles={['admin', 'receptionist']}><Billing /></RequireAuth>} />
               <Route path="/reports" element={<RequireAuth roles={['admin']}><Reports /></RequireAuth>} />
               <Route path="/settings" element={<Settings />} />
             </Route>

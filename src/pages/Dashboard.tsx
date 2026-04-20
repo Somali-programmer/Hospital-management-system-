@@ -2,6 +2,8 @@ import { useAuth } from '../contexts/AuthContext';
 import AdminDashboard from '../components/dashboards/AdminDashboard';
 import DoctorDashboard from '../components/dashboards/DoctorDashboard';
 import ReceptionistDashboard from '../components/dashboards/ReceptionistDashboard';
+import PharmacistDashboard from '../components/dashboards/PharmacistDashboard';
+import LaboratorianDashboard from '../components/dashboards/LaboratorianDashboard';
 
 export default function Dashboard() {
   const { profile } = useAuth();
@@ -23,6 +25,8 @@ export default function Dashboard() {
       {profile.role === 'admin' && <AdminDashboard />}
       {profile.role === 'doctor' && <DoctorDashboard />}
       {profile.role === 'receptionist' && <ReceptionistDashboard />}
+      {profile.role === 'pharmacist' && <PharmacistDashboard />}
+      {profile.role === 'laboratorian' && <LaboratorianDashboard />}
     </div>
   );
 }

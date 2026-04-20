@@ -113,6 +113,14 @@ export default function Login() {
                 <span><span className="font-semibold text-blue-600">Reception:</span> rec1</span>
                 <span>password</span>
               </div>
+              <div className="flex justify-between hover:bg-gray-50 px-2 py-1 rounded cursor-pointer transition-colors" onClick={() => setUsername('pharm1')}>
+                <span><span className="font-semibold text-rose-600">Pharmacist:</span> pharm1</span>
+                <span>password</span>
+              </div>
+              <div className="flex justify-between hover:bg-gray-50 px-2 py-1 rounded cursor-pointer transition-colors" onClick={() => setUsername('lab1')}>
+                <span><span className="font-semibold text-purple-600">Lab:</span> lab1</span>
+                <span>password</span>
+              </div>
             </div>
           </div>
         </div>

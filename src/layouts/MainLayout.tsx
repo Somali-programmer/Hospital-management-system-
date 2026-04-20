@@ -38,15 +38,15 @@ export default function MainLayout() {
   };
 
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'doctor', 'receptionist'] },
-    { name: 'Patients', path: '/patients', icon: UserIcon, roles: ['admin', 'doctor', 'receptionist'] },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'doctor', 'receptionist', 'pharmacist', 'laboratorian'] },
+    { name: 'Patients', path: '/patients', icon: UserIcon, roles: ['admin', 'doctor', 'receptionist', 'pharmacist', 'laboratorian'] },
     { name: 'Appointments', path: '/appointments', icon: Calendar, roles: ['admin', 'doctor', 'receptionist'] },
     { name: 'Doctors', path: '/doctors', icon: Stethoscope, roles: ['admin', 'receptionist', 'doctor'] },
-    { name: 'Pharmacy', path: '/pharmacy', icon: Pill, roles: ['admin', 'doctor', 'receptionist'] },
-    { name: 'Laboratory', path: '/laboratory', icon: Microscope, roles: ['admin', 'doctor', 'receptionist'] },
+    { name: 'Pharmacy', path: '/pharmacy', icon: Pill, roles: ['admin', 'pharmacist'] },
+    { name: 'Laboratory', path: '/laboratory', icon: Microscope, roles: ['admin', 'laboratorian'] },
     { name: 'Billing', path: '/billing', icon: CreditCard, roles: ['admin', 'receptionist'] },
     { name: 'Reports', path: '/reports', icon: BarChart3, roles: ['admin'] },
-    { name: 'Settings', path: '/settings', icon: SettingsIcon, roles: ['admin', 'doctor', 'receptionist'] },
+    { name: 'Settings', path: '/settings', icon: SettingsIcon, roles: ['admin', 'doctor', 'receptionist', 'pharmacist', 'laboratorian'] },
     { name: 'System Docs', path: '/docs', icon: FileText, roles: ['admin'] },
   ];
 

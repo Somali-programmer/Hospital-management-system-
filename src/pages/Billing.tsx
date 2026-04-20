@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { cn } from '../lib/utils';
-import { Search, Plus, CreditCard, DollarSign, Download, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import { Search, Plus, CreditCard, DollarSign, Download, CheckCircle2, AlertCircle, X, TrendingUp, FileText } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Billing as BillType } from '../lib/mockData';
 
 export default function Billing() {
   const { billing: bills, patients, addBill, updateBill } = useData();
@@ -14,6 +16,12 @@ export default function Billing() {
     type: 'other' as const,
     description: 'Manual Invoice'
   });
+
+  const [processingBillId, setProcessingBillId] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  const [paymentMethod, setPaymentMethod] = useState<'cash'|'card'|'insurance'>('cash');
+  
+  const [viewingBill, setViewingBill] = useState<BillType | null>(null);
 
   const getPatientName = (id: string) => {
     const p = patients.find(p => p.id === id);
@@ -36,6 +44,18 @@ export default function Billing() {
     });
     setIsInvoicing(false);
     setNewBill({ patientId: '', amount: 0, currency: 'ETB', type: 'other', description: 'Manual Invoice' });
+  };
+
+  const openPaymentProcessing = (id: string, amount: number) => {
+    setProcessingBillId(id);
+    setPaymentAmount(amount);
+  };
+
+  const confirmPayment = () => {
+    if (processingBillId) {
+      updateBill(processingBillId, { status: 'paid' });
+      setProcessingBillId(null);
+    }
   };
 
   return (
@@ -110,9 +130,27 @@ export default function Billing() {
                       </span>
                     </td>
                     <td className="px-8 py-7 text-center">
-                      <button className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-primary-600 hover:text-white transition-all active:scale-95">
-                         <Download className="w-4 h-4" />
-                      </button>
+                       <div className="flex items-center gap-2">
+                         <button 
+                           onClick={() => setViewingBill(b)}
+                           className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-primary-600 hover:text-white transition-all active:scale-95"
+                           title="View Details"
+                         >
+                           <FileText className="w-4 h-4" />
+                         </button>
+                         {b.status === 'unpaid' && (
+                           <button 
+                             onClick={() => openPaymentProcessing(b.id, b.amount)}
+                             className="p-2 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all active:scale-95"
+                             title="Receive Payment"
+                           >
+                             <DollarSign className="w-4 h-4" />
+                           </button>
+                         )}
+                         <button className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-primary-600 hover:text-white transition-all active:scale-95" title="Download">
+                            <Download className="w-4 h-4" />
+                         </button>
+                       </div>
                     </td>
                   </tr>
                 ))}
@@ -224,20 +262,159 @@ export default function Billing() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
 
-// Re-using TrendingUp for styling in the card above
-function TrendingUp({ className }: { className?: string }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" 
-      strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}
-    >
-      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-      <polyline points="16 7 22 7 22 13" />
-    </svg>
+      {/* Payment Processing Modal */}
+      <AnimatePresence>
+        {processingBillId && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setProcessingBillId(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="relative bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl shadow-black/30 border border-slate-100"
+            >
+              <button 
+                 onClick={() => setProcessingBillId(null)}
+                 className="absolute top-6 right-6 p-2 bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                 <X className="w-5 h-5" />
+              </button>
+
+              <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-[1.5rem] flex items-center justify-center mb-6 shadow-inner mx-auto">
+                <DollarSign className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight text-center">Process Payment</h3>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1 text-center mb-8">Ref: #{processingBillId.substring(0, 8)}</p>
+
+              <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-6 text-center">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Amount Due</p>
+                 <p className="text-3xl font-black text-slate-900 font-mono tracking-tighter">
+                   {paymentAmount.toFixed(2)} <span className="text-sm text-slate-400">ETB</span>
+                 </p>
+              </div>
+
+              <div className="space-y-4 mb-8">
+                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Payment Method</label>
+                 <div className="grid grid-cols-3 gap-2">
+                   {(['cash', 'card', 'insurance'] as const).map(method => (
+                     <button
+                       key={method}
+                       onClick={() => setPaymentMethod(method)}
+                       className={cn(
+                         "py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                         paymentMethod === method 
+                           ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20" 
+                           : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                       )}
+                     >
+                       {method}
+                     </button>
+                   ))}
+                 </div>
+              </div>
+
+              <button 
+                onClick={confirmPayment}
+                className="w-full px-6 py-4 bg-emerald-600 text-white text-[12px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                Confirm Receipt <CheckCircle2 className="w-4 h-4" />
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* View Bill Details Modal */}
+      <AnimatePresence>
+        {viewingBill && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setViewingBill(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="relative bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl shadow-black/30 border border-slate-100"
+            >
+              <button 
+                 onClick={() => setViewingBill(null)}
+                 className="absolute top-6 right-6 p-2 bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                 <X className="w-5 h-5" />
+              </button>
+
+              <div className="w-16 h-16 bg-primary-50 text-primary-600 rounded-[1.5rem] flex items-center justify-center mb-6 shadow-inner mx-auto">
+                <FileText className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight text-center">Invoice Summary</h3>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1 text-center mb-8">Ref: #{viewingBill.id.substring(0, 10).toUpperCase()}</p>
+
+              <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-6 space-y-4">
+                 <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</span>
+                    <span className="text-sm font-black text-slate-800 text-right max-w-[200px] leading-tight">
+                      {viewingBill.description || viewingBill.type.toUpperCase()}
+                    </span>
+                 </div>
+                 <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient</span>
+                    <span className="text-sm font-black text-slate-800 tracking-tight uppercase">
+                      {getPatientName(viewingBill.patientId)}
+                    </span>
+                 </div>
+                 <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</span>
+                    <span className={cn(
+                      "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                      viewingBill.status === 'paid' ? "bg-emerald-100 text-emerald-800 border-emerald-200" : "bg-rose-100 text-rose-800 border-rose-200"
+                    )}>
+                      {viewingBill.status}
+                    </span>
+                 </div>
+                 <div className="flex justify-between items-center pb-2">
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Total Amount</span>
+                    <p className="text-2xl font-black text-slate-900 font-mono tracking-tighter">
+                      {viewingBill.amount.toFixed(2)} <span className="text-sm text-slate-400">{viewingBill.currency}</span>
+                    </p>
+                 </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setViewingBill(null)}
+                  className="flex-1 px-6 py-4 bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all active:scale-95"
+                >
+                  Close
+                </button>
+                {viewingBill.status === 'unpaid' && (
+                  <button 
+                    onClick={() => {
+                      setViewingBill(null);
+                      openPaymentProcessing(viewingBill.id, viewingBill.amount);
+                    }}
+                    className="flex-1 px-6 py-4 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95"
+                  >
+                    Receive Payment
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+    </div>
   );
 }

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { Search, Plus, User, Phone, Briefcase, Calendar, ChevronRight, X } from 'lucide-react';
 
 export default function Doctors() {
   const { doctors, addDoctor } = useData();
+  const { profile } = useAuth();
   const [search, setSearch] = useState('');
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -43,12 +45,14 @@ export default function Doctors() {
               <h3 className="text-lg font-bold text-slate-800 tracking-tight">Staff Management</h3>
               <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Clinical Personnel</p>
             </div>
-            <button 
-              onClick={() => setIsAdding(true)}
-              className="p-2.5 bg-primary-600 text-white rounded-xl shadow-lg shadow-primary-500/20 hover:bg-primary-700 transition-all active:scale-95"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
+            {profile?.role === 'admin' && (
+              <button 
+                onClick={() => setIsAdding(true)}
+                className="p-2.5 bg-primary-600 text-white rounded-xl shadow-lg shadow-primary-500/20 hover:bg-primary-700 transition-all active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            )}
           </div>
           <div className="relative group">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary-500 transition-colors" />
