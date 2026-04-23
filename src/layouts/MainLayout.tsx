@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 export default function MainLayout() {
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -38,20 +38,20 @@ export default function MainLayout() {
   };
 
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'doctor', 'receptionist', 'pharmacist', 'laboratorian'] },
-    { name: 'Patients', path: '/patients', icon: UserIcon, roles: ['admin', 'doctor', 'receptionist', 'pharmacist', 'laboratorian'] },
-    { name: 'Appointments', path: '/appointments', icon: Calendar, roles: ['admin', 'doctor', 'receptionist'] },
-    { name: 'Doctors', path: '/doctors', icon: Stethoscope, roles: ['admin', 'receptionist', 'doctor'] },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'doctor', 'receptionist', 'pharmacist', 'lab-tech', 'nurse'] },
+    { name: 'Patients', path: '/patients', icon: UserIcon, roles: ['admin', 'doctor', 'receptionist', 'pharmacist', 'lab-tech', 'nurse'] },
+    { name: 'Appointments', path: '/appointments', icon: Calendar, roles: ['admin', 'doctor', 'receptionist', 'nurse'] },
+    { name: 'Staff', path: '/doctors', icon: Stethoscope, roles: ['admin', 'receptionist', 'doctor'] },
     { name: 'Pharmacy', path: '/pharmacy', icon: Pill, roles: ['admin', 'pharmacist'] },
-    { name: 'Laboratory', path: '/laboratory', icon: Microscope, roles: ['admin', 'laboratorian'] },
+    { name: 'Laboratory', path: '/laboratory', icon: Microscope, roles: ['admin', 'lab-tech'] },
     { name: 'Billing', path: '/billing', icon: CreditCard, roles: ['admin', 'receptionist'] },
     { name: 'Reports', path: '/reports', icon: BarChart3, roles: ['admin'] },
-    { name: 'Settings', path: '/settings', icon: SettingsIcon, roles: ['admin', 'doctor', 'receptionist', 'pharmacist', 'laboratorian'] },
+    { name: 'Settings', path: '/settings', icon: SettingsIcon, roles: ['admin', 'doctor', 'receptionist', 'pharmacist', 'lab-tech', 'nurse'] },
     { name: 'System Docs', path: '/docs', icon: FileText, roles: ['admin'] },
   ];
 
   const filteredNavItems = navItems.filter(item => 
-    item.roles.includes(user?.role || '')
+    profile?.role && item.roles.includes(profile.role)
   );
 
   return (
@@ -76,8 +76,8 @@ export default function MainLayout() {
               <Building className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-slate-800 tracking-tight leading-tight">Nexus AHIS</h1>
-              <p className="text-[10px] uppercase tracking-widest text-primary-600 font-bold">Medical Systems</p>
+              <h1 className="font-bold text-slate-800 tracking-tight leading-tight text-base">FYP HMS</h1>
+              <p className="text-[10px] uppercase tracking-widest text-primary-600 font-bold">Medical System</p>
             </div>
           </div>
           <button 
@@ -116,11 +116,11 @@ export default function MainLayout() {
           <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary-100 border-2 border-primary-50 flex items-center justify-center text-primary-700 font-bold text-sm uppercase shrink-0 shadow-sm">
-                {user?.name.charAt(0)}
+                {profile?.full_name.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-800 truncate">{user?.name}</p>
-                <p className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold truncate">{user?.role}</p>
+                <p className="text-sm font-bold text-slate-800 truncate">{profile?.full_name}</p>
+                <p className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold truncate">{profile?.role}</p>
               </div>
             </div>
             <button 
@@ -131,6 +131,14 @@ export default function MainLayout() {
               Sign Out
             </button>
           </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-4 px-8 pb-6">
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight text-center leading-relaxed">
+            FYP Hospital Management System<br />
+            Haramaya University Computer Science
+          </p>
         </div>
       </aside>
 

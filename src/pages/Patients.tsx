@@ -20,7 +20,8 @@ import {
   MapPin,
   Phone,
   Filter,
-  MoreHorizontal
+  MoreHorizontal,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -28,8 +29,10 @@ import {
   Patient,
   Appointment,
   MedicalRecord,
-  Billing as Bill
-} from '../lib/mockData';
+  Billing as Bill,
+  LabTest,
+  Prescription
+} from '../types';
 
 interface PatientHistory {
   patient: Patient;
@@ -82,7 +85,7 @@ const LAB_TEST_OPTIONS = [
 import RegistrationModal from '../components/patients/RegistrationModal';
 
 export default function Patients() {
-  const { user: currentUser } = useAuth();
+  const { profile } = useAuth();
   const { 
     patients, 
     appointments, 
@@ -97,22 +100,19 @@ export default function Patients() {
     addBill,
     updateBill,
     addLabTest,
-    addPrescription
+    addPrescription,
+    refreshData
   } = useData();
   
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
-  const [history, setHistory] = useState<{
-    patient: Patient;
-    appointments: Appointment[];
-    records: MedicalRecord[];
-    billing: Bill[];
-  } | null>(null);
+  const [history, setHistory] = useState<PatientHistory | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'clinical' | 'appointments' | 'billing' | 'info'>('clinical');
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Patient>>({});
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isCreatingAppt, setIsCreatingAppt] = useState(false);
   const [apptForm, setApptForm] = useState({
@@ -138,12 +138,10 @@ export default function Patients() {
   const [isRegistering, setIsRegistering] = useState(false);
 
   useEffect(() => {
-    // Initial load simulation
-    const timer = setTimeout(() => {
+    if (patients.length > 0) {
       setLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
-  }, []);
+    }
+  }, [patients]);
 
   useEffect(() => {
     if (selectedPatientId) {
@@ -153,9 +151,9 @@ export default function Patients() {
       if (p) {
         setHistory({
           patient: p,
-          appointments: appointments.filter(a => a.patientId === selectedPatientId),
-          records: medicalRecords.filter(r => r.patientId === selectedPatientId),
-          billing: billing.filter(b => b.patientId === selectedPatientId)
+          appointments: appointments.filter(a => a.patient_id === selectedPatientId),
+          records: medicalRecords.filter(r => r.patient_id === selectedPatientId),
+          billing: billing.filter(b => b.patient_id === selectedPatientId)
         });
       }
     } else {
@@ -167,11 +165,11 @@ export default function Patients() {
   const handleEditInit = () => {
     if (history?.patient) {
       setEditForm({
-        firstName: history.patient.firstName,
-        lastName: history.patient.lastName,
+        first_name: history.patient.first_name,
+        last_name: history.patient.last_name,
         dob: history.patient.dob,
-        contact: history.patient.contact,
-        address: history.patient.address,
+        contact_number: history.patient.contact_number,
+        address_street: history.patient.address_street,
       });
       setValidationError(null);
       setIsEditing(true);
@@ -179,18 +177,10 @@ export default function Patients() {
   };
 
   const validateForm = () => {
-    const phoneRegex = /^\+?[0-9\s\-()]{7,20}$/;
-    
-    if (!editForm.contact) {
+    if (!editForm.contact_number) {
       setValidationError("Contact number is required.");
       return false;
     }
-    
-    if (!phoneRegex.test(editForm.contact)) {
-      setValidationError("Invalid phone format. (e.g., +251 91 123 4567)");
-      return false;
-    }
-
     setValidationError(null);
     return true;
   };
@@ -203,130 +193,149 @@ export default function Patients() {
 
   const performSave = async () => {
     if (!selectedPatientId) return;
-    updatePatient(selectedPatientId, editForm);
-    setIsEditing(false);
-    setShowSaveConfirm(false);
+    setIsSaving(true);
+    try {
+      await updatePatient(selectedPatientId, editForm);
+      await refreshData();
+      setIsEditing(false);
+      setShowSaveConfirm(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCreateAppointment = async () => {
-    if (!selectedPatientId || !currentUser) return;
-    
-    addAppointment({
-      patientId: selectedPatientId,
-      date: apptForm.date,
-      notes: apptForm.notes,
-      doctorId: currentUser.id,
-      status: 'scheduled'
-    });
-    
-    setIsCreatingAppt(false);
-    setApptForm({
-      date: new Date().toISOString().split('T')[0],
-      notes: '',
-    });
+    if (!selectedPatientId || !profile) return;
+    setIsSaving(true);
+    try {
+      await addAppointment({
+        patient_id: selectedPatientId,
+        appointment_date: apptForm.date,
+        notes: apptForm.notes,
+        doctor_id: profile.id,
+        status: 'scheduled'
+      });
+      await refreshData();
+      setIsCreatingAppt(false);
+      setApptForm({
+        date: new Date().toISOString().split('T')[0],
+        notes: '',
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCreateRecord = async () => {
-    if (!selectedPatientId || !currentUser) return;
-    
-    // 1. Create Laboratory Requests
-    const labTestIds = recordForm.selectedLabTests.map(testName => {
-      const newLabId = addLabTest({
-        patientId: selectedPatientId,
-        testName,
-        requestedBy: currentUser.id,
-        status: 'pending',
-        requestDate: new Date().toISOString().split('T')[0]
+    if (!selectedPatientId || !profile) return;
+    setIsSaving(true);
+    try {
+      // 1. Create Medical Record
+      const newRecord = await addRecord({
+        patient_id: selectedPatientId,
+        doctor_id: profile.id,
+        diagnosis: recordForm.diagnosis,
+        treatment_plan: recordForm.prescription,
+        vitals_id: null // Ideally linked to latest vitals
       });
-      // Laboratory billing (typical 150 ETB per test for now)
-      addBill({
-        patientId: selectedPatientId,
-        type: 'laboratory',
-        amount: 150,
-        status: 'unpaid',
-        issuedDate: new Date().toISOString(),
-        currency: 'ETB',
-        description: `Lab Test: ${testName}`
-      });
-      return newLabId;
-    });
 
-    // 2. Create Structured Prescription
-    let structuredPrescriptionId: string | undefined = undefined;
-    if (recordForm.prescribedMeds.length > 0) {
-      structuredPrescriptionId = addPrescription({
-        patientId: selectedPatientId,
-        doctorId: currentUser.id,
-        medicines: recordForm.prescribedMeds,
-        date: new Date().toISOString(),
-        status: 'pending'
+      if (!newRecord) throw new Error("Failed to create record");
+
+      // 2. Create Laboratory Requests
+      for (const testName of recordForm.selectedLabTests) {
+        await addLabTest({
+          patient_id: selectedPatientId,
+          test_name: testName,
+          requested_by: profile.id,
+          status: 'pending'
+        });
+        
+        await addBill({
+          patient_id: selectedPatientId,
+          billing_type: 'laboratory',
+          amount: 150,
+          status: 'unpaid',
+          currency: 'ETB',
+          description: `Lab Test: ${testName}`
+        });
+      }
+
+      // 3. Create Prescription
+      if (recordForm.prescribedMeds.length > 0) {
+        await addPrescription({
+          patient_id: selectedPatientId,
+          doctor_id: profile.id,
+          status: 'pending'
+        }, recordForm.prescribedMeds.filter(p => p.medicineId).map(p => ({
+          medicine_id: p.medicineId,
+          dosage: p.dosage,
+          frequency: p.frequency,
+          duration: p.duration
+        })));
+      }
+      
+      // 4. Consultation Bill
+      if (recordForm.generateBillAmount && parseFloat(recordForm.generateBillAmount) > 0) {
+        await addBill({
+          patient_id: selectedPatientId,
+          billing_type: 'consultation',
+          amount: parseFloat(recordForm.generateBillAmount),
+          status: 'unpaid',
+          currency: 'ETB',
+          description: `Medical Consultation: ${recordForm.diagnosis}`
+        });
+      }
+
+      await refreshData();
+      setIsCreatingRecord(false);
+      setRecordForm({
+        diagnosis: '',
+        prescription: '',
+        presentingComplaint: '',
+        familyHistory: '',
+        socialHistory: '',
+        vitalsBp: '',
+        vitalsTemp: '',
+        vitalsPulse: '',
+        generateBillAmount: '500',
+        selectedLabTests: [],
+        prescribedMeds: [],
       });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
     }
-    
-    // 3. Create Medical Record
-    addRecord({
-      patientId: selectedPatientId,
-      doctorId: currentUser.id,
-      diagnosis: recordForm.diagnosis,
-      prescription: recordForm.prescription, // Keep as summary
-      structuredPrescriptionId,
-      labTestIds,
-      clinicalHistory: {
-        presentingComplaint: recordForm.presentingComplaint,
-        familyHistory: recordForm.familyHistory,
-        socialHistory: recordForm.socialHistory,
-        vitals: {
-          bp: recordForm.vitalsBp,
-          temp: recordForm.vitalsTemp,
-          pulse: recordForm.vitalsPulse,
-        }
-      },
-      createdAt: new Date().toISOString()
-    });
-
-    // 4. Consultation Bill
-    if (recordForm.generateBillAmount && parseFloat(recordForm.generateBillAmount) > 0) {
-      addBill({
-        patientId: selectedPatientId,
-        type: 'consultation',
-        amount: parseFloat(recordForm.generateBillAmount),
-        status: 'unpaid',
-        issuedDate: new Date().toISOString(),
-        currency: 'ETB',
-        description: `Medical Consultation: ${recordForm.diagnosis}`
-      });
-    }
-
-    setIsCreatingRecord(false);
-    setRecordForm({
-      diagnosis: '',
-      prescription: '',
-      presentingComplaint: '',
-      familyHistory: '',
-      socialHistory: '',
-      vitalsBp: '',
-      vitalsTemp: '',
-      vitalsPulse: '',
-      generateBillAmount: '500',
-      selectedLabTests: [],
-      prescribedMeds: [],
-    });
   };
 
-  const handlePayBill = (billId: string) => {
-    updateBill(billId, { status: 'paid' });
+  const handlePayBill = async (billId: string) => {
+    try {
+      await updateBill(billId, { status: 'paid' });
+      await refreshData();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleCompleteAppt = (apptId: string) => {
-    updateAppointment(apptId, { status: 'completed' });
+  const handleCompleteAppt = async (apptId: string) => {
+    try {
+      await updateAppointment(apptId, { status: 'completed' });
+      await refreshData();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const filteredPatients = patients.filter(p => {
     const query = search.toLowerCase();
-    const fullName = `${p.firstName} ${p.lastName}`.toLowerCase();
+    const fullName = `${p.first_name} ${p.last_name}`.toLowerCase();
     return fullName.includes(query) || 
            p.id.toString().includes(query) || 
-           (p.bloodGroup || '').toLowerCase().includes(query) ||
+           (p.blood_group || '').toLowerCase().includes(query) ||
            (p.status || '').toLowerCase().includes(query);
   });
 
@@ -354,7 +363,7 @@ export default function Patients() {
                <h3 className="text-lg font-bold text-slate-800 tracking-tight">Patient Registry</h3>
                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Hospital Management Unit</p>
              </div>
-             {(currentUser?.role === 'admin' || currentUser?.role === 'receptionist') && (
+             {(profile?.role === 'admin' || profile?.role === 'receptionist' || profile?.role === 'nurse') && (
                <button 
                  onClick={() => setIsRegistering(true)}
                  className="p-2.5 bg-primary-600 text-white rounded-xl shadow-lg shadow-primary-500/20 hover:bg-primary-700 transition-all active:scale-95"
@@ -391,16 +400,16 @@ export default function Patients() {
                 "w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm transition-colors",
                 selectedPatientId === p.id ? "bg-primary-600 text-white" : "bg-slate-100 text-slate-500"
               )}>
-                {p.firstName?.charAt(0)}{p.lastName?.charAt(0)}
+                {p.first_name?.charAt(0)}{p.last_name?.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-0.5">
-                  <h4 className="font-bold text-slate-800 text-sm truncate">{p.firstName} {p.lastName}</h4>
+                  <h4 className="font-bold text-slate-800 text-sm truncate">{p.first_name} {p.last_name}</h4>
                   <span className="text-[10px] font-mono text-slate-400 font-bold tracking-tighter">#{p.id.toString().substring(0, 6).toUpperCase()}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <StatusBadge status={p.status} />
-                  <span className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{p.bloodGroup || 'N/A'}</span>
+                  <span className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{p.blood_group || 'N/A'}</span>
                 </div>
               </div>
               <ChevronRight className={cn("w-4 h-4 transition-all opacity-0 group-hover:opacity-100", selectedPatientId === p.id ? "text-primary-600 opacity-100 translate-x-1" : "text-slate-300")} />
@@ -461,7 +470,7 @@ export default function Patients() {
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 text-center sm:text-left">
                     <div className="relative shrink-0">
                       <div className="w-20 h-20 md:w-24 md:h-24 bg-primary-600 rounded-2xl md:rounded-3xl flex items-center justify-center text-white text-3xl md:text-4xl font-black shadow-xl shadow-primary-500/30">
-                        {history.patient.firstName.charAt(0)}{history.patient.lastName.charAt(0)}
+                        {history.patient.first_name.charAt(0)}{history.patient.last_name.charAt(0)}
                       </div>
                       <div className="absolute -bottom-1 -right-1">
                         <StatusBadge status={history.patient.status} />
@@ -471,13 +480,13 @@ export default function Patients() {
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2 justify-center sm:justify-start">
                         <h2 className="text-xl md:text-3xl font-black text-slate-900 tracking-tight leading-tight break-words px-4 sm:px-0">
-                          {history.patient.firstName} {history.patient.lastName}
+                          {history.patient.first_name} {history.patient.last_name}
                         </h2>
                       </div>
                       
                       <div className="flex flex-wrap justify-center sm:justify-start items-center gap-x-4 gap-y-2 text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-wide">
-                        <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary-500" /> {history.patient.address}</span>
-                        <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-primary-500" /> {history.patient.contact}</span>
+                        <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary-500" /> {history.patient.address_street}</span>
+                        <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-primary-500" /> {history.patient.contact_number}</span>
                         <span className="px-2 py-0.5 bg-slate-200 text-slate-700 rounded-md">MRN: {history.patient.id.toString().substring(0, 8).toUpperCase()}</span>
                       </div>
                     </div>
@@ -530,7 +539,7 @@ export default function Patients() {
                              <Phone className="w-3 h-3" /> Emergency
                           </p>
                           <p className="text-xs md:text-sm font-black text-rose-800 tracking-tight">
-                            {history.patient.emergencyContact || 'Not Recorded'}
+                            {history.patient.emergency_contact_phone || 'Not Recorded'}
                           </p>
                         </div>
                       </div>
@@ -575,7 +584,7 @@ export default function Patients() {
                               <Droplet className="w-3 h-3 text-rose-500" /> Blood Group
                             </p>
                             <p className="text-xl md:text-2xl font-black text-rose-600 uppercase italic">
-                              {history.patient.bloodGroup || 'O+'}
+                              {history.patient.blood_group || 'O+'}
                             </p>
                           </div>
                           <div className="text-right">
@@ -607,7 +616,7 @@ export default function Patients() {
                           <Activity className="w-5 h-5 text-primary-500" />
                           EMR Clinical History
                         </h4>
-                        {currentUser?.role === 'doctor' && (
+                        {profile?.role === 'doctor' && (
                           <button 
                             onClick={() => setIsCreatingRecord(true)}
                             className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 shadow-xl shadow-slate-900/10 text-white text-[11px] font-bold rounded-xl active:scale-95 transition-all w-full sm:w-auto"
@@ -618,9 +627,9 @@ export default function Patients() {
                       </div>
 
                       <div className="relative border-l-2 border-slate-100 ml-4 md:ml-5 pl-6 md:pl-10 space-y-8 md:space-y-12">
-                        {history.records.length === 0 ? (
-                          <div className="text-slate-300 text-sm py-12 italic font-medium">No previous clinical records detected in registry.</div>
-                        ) : [...history.records].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((record) => (
+                                {history.records.length === 0 ? (
+                                  <div className="text-slate-300 text-sm py-12 italic font-medium">No previous clinical records detected in registry.</div>
+                                ) : [...history.records].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map((record) => (
                           <div key={record.id} className="relative">
                             <div className="absolute -left-[35px] md:-left-[51px] top-4 w-4 h-4 md:w-6 md:h-6 bg-white border-4 border-primary-500 rounded-full z-10 shadow-sm shadow-primary-500/20"></div>
                             <div className="bg-white border border-slate-100 rounded-2xl md:rounded-[2rem] p-5 md:p-8 shadow-[0_4px_30px_rgb(0,0,0,0.02)] hover:shadow-[0_10px_40px_rgb(0,0,0,0.04)] transition-all duration-300">
@@ -631,7 +640,7 @@ export default function Patients() {
                                     {record.diagnosis}
                                   </h5>
                                   <p className="text-[10px] md:text-[11px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2 mt-4">
-                                    <Clock className="w-3.5 h-3.5" /> {new Date(record.createdAt).toLocaleDateString()}
+                                    <Clock className="w-3.5 h-3.5" /> {new Date(record.created_at).toLocaleDateString()}
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-4 bg-slate-50 p-3 md:p-4 rounded-2xl md:rounded-3xl border border-slate-100 w-fit">
@@ -645,56 +654,36 @@ export default function Patients() {
                                 </div>
                               </div>
                               
-                              {record.clinicalHistory && (
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10 mb-8 md:mb-10">
-                                  <div className="space-y-6">
-                                    <div>
-                                      <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">History & Presentation</p>
-                                      <p className="text-xs md:text-sm text-slate-700 leading-relaxed font-semibold italic border-l-4 border-slate-200 pl-4 py-1">
-                                        "{record.clinicalHistory.presentingComplaint}"
-                                      </p>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                      <div>
-                                        <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Family History</p>
-                                        <p className="text-xs font-bold text-slate-600 leading-normal">{record.clinicalHistory.familyHistory || 'None noted'}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Social context</p>
-                                        <p className="text-xs font-bold text-slate-600 leading-normal">{record.clinicalHistory.socialHistory || 'None noted'}</p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="bg-slate-900 rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 text-white shadow-xl shadow-slate-900/10 h-fit">
-                                    <p className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                      <Activity className="w-3.5 h-3.5 text-primary-400" /> Vital Assessment
+                              {/* Remove clinicalHistory block since it's not in the type */}
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10 mb-8 md:mb-10">
+                                <div className="space-y-6">
+                                  <div>
+                                    <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">History & Presentation</p>
+                                    <p className="text-xs md:text-sm text-slate-700 leading-relaxed font-semibold italic border-l-4 border-slate-200 pl-4 py-1">
+                                      {record.history || "No clinical history provided."}
                                     </p>
-                                    <div className="grid grid-cols-3 gap-2 md:gap-4 text-center">
-                                       <div className="group">
-                                          <p className="text-[8px] md:text-[9px] text-slate-500 uppercase font-black mb-1">BP</p>
-                                          <p className="text-sm md:text-lg font-black text-white font-mono tracking-tighter">{record.clinicalHistory.vitals.bp}</p>
-                                       </div>
-                                       <div className="border-x border-slate-800 px-1 md:px-2 group">
-                                          <p className="text-[8px] md:text-[9px] text-slate-500 uppercase font-black mb-1">Temp</p>
-                                          <p className="text-sm md:text-lg font-black text-white font-mono tracking-tighter">{record.clinicalHistory.vitals.temp}°C</p>
-                                       </div>
-                                       <div className="group">
-                                          <p className="text-[8px] md:text-[9px] text-slate-500 uppercase font-black mb-1">Pulse</p>
-                                          <p className="text-sm md:text-lg font-black text-white font-mono tracking-tighter">{record.clinicalHistory.vitals.pulse} bpm</p>
-                                       </div>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <div>
+                                      <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Diagnosis Date</p>
+                                      <p className="text-xs font-bold text-slate-600 leading-normal">{new Date(record.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Status</p>
+                                      <p className="text-xs font-bold text-slate-600 leading-normal">Clinical Record Verified</p>
                                     </div>
                                   </div>
                                 </div>
-                              )}
+                              </div>
 
                               <div className="pt-6 md:pt-8 border-t border-slate-50">
                                 <div className="flex items-center gap-3 mb-4">
                                    <FileText className="w-4 h-4 text-emerald-500" />
-                                   <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest">Protocol & Prescription</p>
+                                   <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest">Protocol & Treatment Plan</p>
                                 </div>
                                 <div className="p-4 md:p-5 bg-emerald-50/50 rounded-xl md:rounded-2xl border border-emerald-100/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                  <span className="text-sm font-black text-emerald-800 tracking-tight leading-tight">{record.prescription}</span>
-                                  <div className="px-3 py-1 bg-emerald-100 text-emerald-700 text-[9px] font-black rounded-lg uppercase w-fit whitespace-nowrap">Pharma Validated</div>
+                                  <span className="text-sm font-black text-emerald-800 tracking-tight leading-tight">{record.treatment_plan}</span>
+                                  <div className="px-3 py-1 bg-emerald-100 text-emerald-700 text-[9px] font-black rounded-lg uppercase w-fit whitespace-nowrap">Clinical Registry</div>
                                 </div>
                               </div>
                             </div>
@@ -713,7 +702,7 @@ export default function Patients() {
                          <Calendar className="w-5 h-5 md:w-6 md:h-6 text-primary-500" /> 
                          Clinic Session History
                        </h4>
-                       {(currentUser?.role === 'admin' || currentUser?.role === 'receptionist') && (
+                       {(profile?.role === 'admin' || profile?.role === 'receptionist') && (
                          <button 
                            onClick={() => setIsCreatingAppt(true)}
                            className="flex items-center justify-center gap-2 px-5 py-3 bg-primary-600 text-white text-[11px] font-bold rounded-xl active:scale-95 transition-all shadow-xl shadow-primary-500/20 w-full sm:w-auto"
@@ -733,20 +722,20 @@ export default function Patients() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                        {[...history.appointments].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(appt => (
-                          <div key={appt.id} className="p-5 md:p-6 bg-white border border-slate-100 rounded-2xl md:rounded-[1.5rem] shadow-[0_4px_30px_rgb(0,0,0,0.02)] flex flex-col sm:flex-row sm:items-center justify-between gap-6 group hover:border-primary-200 transition-all hover:shadow-[0_10px_40px_rgb(0,0,0,0.04)]">
+                        {[...history.appointments].sort((a,b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime()).map(appt => (
+                          <div key={appt.id} className="p-5 md:p-6 bg-white border border-slate-100 rounded-2xl md:rounded-[1.5rem] shadow-[0_4px_30px_rgb(0,0,0,0.02)] flex flex-col sm:flex-row sm:items-center justify-between gap-6 group hover:border-primary-200 transition-all hover:shadow-[0_10px_40_rgb(0,0,0,0.04)]">
                             <div className="flex items-center gap-4 md:gap-5">
                               <div className={cn(
                                 "w-14 h-14 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex flex-col items-center justify-center font-bold shadow-sm transition-all shrink-0",
                                 appt.status === 'completed' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-primary-50 text-primary-600 border border-primary-100"
                               )}>
-                                <span className="text-[9px] md:text-[10px] uppercase font-black opacity-60">{new Date(appt.date).toLocaleString('default', { month: 'short' })}</span>
-                                <span className="text-xl md:text-2xl leading-none font-black">{new Date(appt.date).getDate()}</span>
+                                <span className="text-[9px] md:text-[10px] uppercase font-black opacity-60">{new Date(appt.appointment_date).toLocaleString('default', { month: 'short' })}</span>
+                                <span className="text-xl md:text-2xl leading-none font-black">{new Date(appt.appointment_date).getDate()}</span>
                               </div>
                               <div className="min-w-0">
                                 <p className="text-sm md:text-base font-bold text-slate-900 tracking-tight line-clamp-1">{appt.notes || 'Routine Medical Visit'}</p>
                                 <p className="text-[10px] md:text-xs text-slate-400 font-black uppercase tracking-widest mt-1.5 flex items-center gap-2">
-                                  <Clock className="w-3.5 h-3.5 text-primary-500" /> {new Date(appt.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  <Clock className="w-3.5 h-3.5 text-primary-500" /> {new Date(appt.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </p>
                               </div>
                             </div>
@@ -757,7 +746,7 @@ export default function Patients() {
                               )}>
                                 {appt.status}
                               </span>
-                              {(currentUser?.role === 'admin' || currentUser?.role === 'receptionist' || currentUser?.role === 'doctor') && appt.status !== 'completed' && (
+                              {(profile?.role === 'admin' || profile?.role === 'receptionist' || profile?.role === 'doctor') && appt.status !== 'completed' && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleCompleteAppt(appt.id); }}
                                   className="text-[9px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest underline decoration-primary-300 underline-offset-4 active:scale-95 transition-all"
@@ -795,7 +784,7 @@ export default function Patients() {
                          <div className="text-center py-12 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200">
                             <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest italic">No financial sessions on record</p>
                          </div>
-                       ) : [...history.billing].sort((a,b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime()).map(bill => (
+                       ) : [...history.billing].sort((a,b) => new Date(b.issued_date || b.created_at).getTime() - new Date(a.issued_date || a.created_at).getTime()).map(bill => (
                          <div key={bill.id} className="p-5 bg-white border border-slate-100 rounded-2xl shadow-sm space-y-4">
                             <div className="flex justify-between items-start pb-4 border-b border-slate-50">
                                <div>
@@ -812,14 +801,14 @@ export default function Patients() {
                             <div className="flex justify-between items-end">
                                <div>
                                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Issued Date</p>
-                                  <p className="text-xs font-bold text-slate-600 mt-0.5">{new Date(bill.issuedDate).toLocaleDateString()}</p>
+                                  <p className="text-xs font-bold text-slate-600 mt-0.5">{new Date(bill.issued_date || bill.created_at).toLocaleDateString()}</p>
                                </div>
                                <div className="text-right">
                                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Amount Due</p>
                                   <p className="text-lg font-black text-slate-900 font-mono tracking-tighter mt-0.5">{FormatCurrency(bill.amount)}</p>
                                </div>
                             </div>
-                            {(currentUser?.role === 'admin' || currentUser?.role === 'receptionist') && bill.status === 'unpaid' && (
+                            {(profile?.role === 'admin' || profile?.role === 'receptionist') && bill.status === 'unpaid' && (
                                <button
                                  onClick={(e) => { e.stopPropagation(); handlePayBill(bill.id); }}
                                  className="w-full py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10 active:scale-95"
@@ -846,10 +835,10 @@ export default function Patients() {
                         <tbody className="divide-y divide-slate-50">
                            {history.billing.length === 0 ? (
                             <tr><td colSpan={5} className="px-8 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[11px] italic">No detected transactions</td></tr>
-                          ) : [...history.billing].sort((a,b) => new Date(b.issuedDate).getTime() - new Date(a.issuedDate).getTime()).map(bill => (
+                          ) : [...history.billing].sort((a,b) => new Date(b.issued_date || b.created_at).getTime() - new Date(a.issued_date || a.created_at).getTime()).map(bill => (
                             <tr key={bill.id} className="hover:bg-slate-50/50 transition-colors group">
                               <td className="px-8 py-7 font-mono font-black text-slate-900 text-xs tracking-tighter">#NEX-{bill.id.toString().substring(0, 8).toUpperCase()}</td>
-                              <td className="px-8 py-7 font-bold text-slate-500 uppercase text-[11px] tracking-tight">{new Date(bill.issuedDate).toLocaleDateString()}</td>
+                              <td className="px-8 py-7 font-bold text-slate-500 uppercase text-[11px] tracking-tight">{new Date(bill.issued_date || bill.created_at).toLocaleDateString()}</td>
                               <td className="px-8 py-7 text-right font-black text-slate-900 font-mono text-lg tracking-tighter">
                                 {FormatCurrency(bill.amount)}
                               </td>
@@ -862,7 +851,7 @@ export default function Patients() {
                                 </span>
                               </td>
                               <td className="px-8 py-7 text-right">
-                                {(currentUser?.role === 'admin' || currentUser?.role === 'receptionist') && bill.status === 'unpaid' && (
+                                {(profile?.role === 'admin' || profile?.role === 'receptionist') && bill.status === 'unpaid' && (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handlePayBill(bill.id); }}
                                     className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 active:scale-95"
@@ -904,7 +893,7 @@ export default function Patients() {
                                   </button>
                                 </>
                               ) : (
-                                (currentUser?.role === 'admin' || currentUser?.role === 'receptionist') && (
+                                (profile?.role === 'admin' || profile?.role === 'receptionist') && (
                                   <button 
                                     onClick={handleEditInit} 
                                     className="p-2 bg-white border border-slate-200 text-primary-600 rounded-xl hover:bg-slate-50 transition-all active:scale-90"
@@ -919,11 +908,11 @@ export default function Patients() {
 
                         <div className="space-y-5">
                            {[
-                             { label: 'Legal Given Name', key: 'firstName', value: history.patient.firstName, mono: false },
-                             { label: 'Legal Family Name', key: 'lastName', value: history.patient.lastName, mono: false },
+                             { label: 'Legal Given Name', key: 'first_name', value: history.patient.first_name, mono: false },
+                             { label: 'Legal Family Name', key: 'last_name', value: history.patient.last_name, mono: false },
                              { label: 'Date of Birth', key: 'dob', value: history.patient.dob, mono: true, type: 'date' },
                              { label: 'Gender Identity', value: history.patient.gender === 'M' ? 'Male (M)' : 'Female (F)', mono: false, readOnly: true },
-                             { label: 'Primary Blood Group', value: history.patient.bloodGroup || 'O+', mono: true, highlight: 'text-rose-600', readOnly: true }
+                             { label: 'Primary Blood Group', value: history.patient.blood_group || 'O+', mono: true, highlight: 'text-rose-600', readOnly: true }
                            ].map((item, i) => (
                              <div key={i} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 py-3 border-b border-slate-50/50 group">
                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.label}</span>
@@ -947,27 +936,27 @@ export default function Patients() {
                            <Phone className="w-4 h-4 text-primary-500" />
                            Logistics & Access
                         </h5>
-                        <div className="space-y-6 mb-8">
-                           <div className="flex flex-col gap-2 py-3 border-b border-slate-50 group">
+                        <div className="space-y-6 mb-8">                            <div className="flex flex-col gap-2 py-3 border-b border-slate-50 group">
                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Residential Locality</span>
                              {isEditing ? (
                                <textarea 
-                                 value={editForm.address || ''}
-                                 onChange={e => setEditForm({ ...editForm, address: e.target.value })}
+                                 value={editForm.address_street || ''}
+                                 onChange={e => setEditForm({ ...editForm, address_street: e.target.value })}
                                  className="text-sm font-bold text-slate-800 tracking-tight bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-primary-500/10 h-24 resize-none uppercase"
                                />
                              ) : (
-                               <span className="text-sm font-bold text-slate-800 tracking-tight leading-relaxed uppercase">{history.patient.address}</span>
+                               <span className="text-sm font-bold text-slate-800 tracking-tight leading-relaxed uppercase">{history.patient.address_street}</span>
                              )}
                            </div>
+
                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 py-3 border-b border-slate-50 group">
                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Primary Contact</span>
                              {isEditing ? (
                                <div className="flex flex-col items-stretch sm:items-end gap-1.5 w-full sm:max-w-[180px]">
                                  <input 
                                    type="text"
-                                   value={editForm.contact || ''}
-                                   onChange={e => setEditForm({ ...editForm, contact: e.target.value })}
+                                   value={editForm.contact_number || ''}
+                                   onChange={e => setEditForm({ ...editForm, contact_number: e.target.value })}
                                    className={cn(
                                      "text-sm font-black text-slate-800 tracking-tight sm:text-right bg-slate-50 px-3 py-2 rounded-xl border focus:outline-none focus:ring-4 font-mono w-full",
                                      validationError ? "border-rose-300 ring-rose-500/10 focus:ring-rose-500/20" : "border-slate-200 focus:ring-primary-500/10"
@@ -980,7 +969,7 @@ export default function Patients() {
                                  )}
                                </div>
                              ) : (
-                               <span className="text-sm font-black text-slate-800 font-mono sm:text-right">{history.patient.contact}</span>
+                               <span className="text-sm font-black text-slate-800 font-mono sm:text-right">{history.patient.contact_number}</span>
                              )}
                            </div>
                         </div>

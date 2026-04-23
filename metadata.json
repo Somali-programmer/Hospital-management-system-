@@ -1,6 +1,6 @@
 {
-  "name": "Automated Healthcare Information System (AHIS)",
-  "description": "A 3-tier web architecture MVP for managing patient registration, appointments, medical records, and billing with role-based access control.",
+  "name": "FYP Hospital Management System",
+  "description": "A production-ready hospital management system developed for Haramaya University Computer Science final year project. Features 6 user roles: Admin, Receptionist, Doctor, Nurse, Laboratory Technician, and Pharmacist.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

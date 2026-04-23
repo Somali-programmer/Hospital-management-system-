@@ -1,57 +1,76 @@
 import React, { useState } from 'react';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
-import { Search, Plus, TestTube, FileText, CheckCircle2, Clock, Microscope, X, Beaker } from 'lucide-react';
+import { Search, Plus, TestTube, FileText, CheckCircle2, Clock, Microscope, X, Beaker, Loader2 } from 'lucide-react';
 
 export default function Laboratory() {
-  const { labTests: tests, patients, addLabTest, updateLabTest } = useData();
+  const { labTests: tests, patients, addLabTest, updateLabTest, refreshData } = useData();
+  const { profile } = useAuth();
   const [search, setSearch] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   const [isEnteringResult, setIsEnteringResult] = useState<string | null>(null);
   const [resultText, setResultText] = useState('');
   const [newRequest, setNewRequest] = useState({
     patientId: '',
     testName: '',
-    requestedBy: '',
-    requestDate: new Date().toISOString().split('T')[0]
   });
 
   const getPatientName = (id: string) => {
     const p = patients.find(p => p.id === id);
-    return p ? `${p.firstName} ${p.lastName}` : 'Unknown Patient';
+    return p ? `${p.first_name} ${p.last_name}` : 'Unknown Patient';
   };
 
   const filteredTests = tests.filter(t => 
-    t.testName.toLowerCase().includes(search.toLowerCase()) ||
-    getPatientName(t.patientId).toLowerCase().includes(search.toLowerCase())
+    t.test_name.toLowerCase().includes(search.toLowerCase()) ||
+    getPatientName(t.patient_id).toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addLabTest({
-      ...newRequest,
-      status: 'pending'
-    });
-    setIsRequesting(false);
-    setNewRequest({
-      patientId: '',
-      testName: '',
-      requestedBy: '',
-      requestDate: new Date().toISOString().split('T')[0]
-    });
+    if (!profile) return;
+    setIsSubmitting(true);
+    try {
+      await addLabTest({
+        patient_id: newRequest.patientId,
+        test_name: newRequest.testName,
+        requested_by: profile.id,
+        status: 'pending'
+      });
+      await refreshData();
+      setIsRequesting(false);
+      setNewRequest({
+        patientId: '',
+        testName: '',
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleSaveResult = (testId: string) => {
-    updateLabTest(testId, {
-      status: 'completed',
-      result: resultText
-    });
-    setIsEnteringResult(null);
-    setResultText('');
+  const handleSaveResult = async (testId: string) => {
+    setIsSubmitting(true);
+    try {
+      await updateLabTest(testId, {
+        status: 'completed',
+        result: resultText,
+        updated_at: new Date().toISOString()
+      });
+      await refreshData();
+      setIsEnteringResult(null);
+      setResultText('');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto h-full pb-12 relative">
+    <div className="space-y-8 max-w-7xl mx-auto h-full pb-12 relative animate-in fade-in duration-700">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 px-2">
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase flex items-center gap-4 leading-tight">
@@ -94,11 +113,11 @@ export default function Laboratory() {
                       {test.status === 'completed' ? <Microscope className="w-6 h-6" /> : <Clock className="w-6 h-6 animate-pulse" />}
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-black text-slate-900 text-xl tracking-tight leading-tight uppercase underline decoration-primary-500/30 underline-offset-4 truncate">{test.testName}</h4>
+                      <h4 className="font-black text-slate-900 text-xl tracking-tight leading-tight uppercase underline decoration-primary-500/30 underline-offset-4 truncate">{test.test_name}</h4>
                       <div className="flex items-center gap-3 mt-1.5 font-bold text-slate-400 text-[11px] uppercase tracking-widest">
-                        <span className="text-slate-800 truncate">{getPatientName(test.patientId)}</span>
+                        <span className="text-slate-800 truncate">{getPatientName(test.patient_id)}</span>
                         <span>•</span>
-                        <span>Lab ID: {test.id}</span>
+                        <span>Lab ID: {test.id.slice(0, 8)}</span>
                       </div>
                     </div>
                   </div>
@@ -106,7 +125,7 @@ export default function Laboratory() {
                   <div className="flex items-center gap-4 shrink-0">
                     <div className="text-right hidden sm:block">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Request Date</p>
-                      <p className="text-sm font-black text-slate-800 font-mono tracking-tighter">{test.requestDate}</p>
+                      <p className="text-sm font-black text-slate-800 font-mono tracking-tighter">{new Date(test.created_at).toLocaleDateString()}</p>
                     </div>
                     <div className={cn(
                       "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border shadow-sm",
@@ -152,10 +171,12 @@ export default function Laboratory() {
                             Cancel
                           </button>
                           <button
+                            disabled={isSubmitting}
                             onClick={() => handleSaveResult(test.id)}
-                            className="px-5 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20 active:scale-95 transition-all flex items-center gap-2"
+                            className="px-5 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                           >
-                            <CheckCircle2 className="w-4 h-4" /> Finalize Result
+                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                            Finalize Result
                           </button>
                         </div>
                       </div>
@@ -248,7 +269,7 @@ export default function Laboratory() {
                 >
                   <option value="">Select Patient...</option>
                   {patients.map(p => (
-                    <option key={p.id} value={p.id}>{p.firstName} {p.lastName} ({p.id})</option>
+                    <option key={p.id} value={p.id}>{p.first_name} {p.last_name} ({p.id.slice(0, 8)})</option>
                   ))}
                 </select>
               </div>
@@ -265,30 +286,21 @@ export default function Laboratory() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Requesting Physician ID</label>
-                <input 
-                  type="text"
-                  required
-                  placeholder="Doctor / Staff ID..."
-                  value={newRequest.requestedBy}
-                  onChange={e => setNewRequest({...newRequest, requestedBy: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all outline-none"
-                />
-              </div>
-
               <div className="pt-4 flex gap-4">
                 <button 
                   type="button"
                   onClick={() => setIsRequesting(false)}
-                  className="flex-1 px-6 py-4 bg-slate-50 text-slate-600 text-[11px] font-black uppercase tracking-widest rounded-2xl border border-slate-100 hover:bg-slate-100 transition-all"
+                  disabled={isSubmitting}
+                  className="flex-1 px-6 py-4 bg-slate-50 text-slate-600 text-[11px] font-black uppercase tracking-widest rounded-2xl border border-slate-100 hover:bg-slate-100 transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all"
+                  disabled={isSubmitting}
+                  className="flex-1 px-6 py-4 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
+                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   Confirm Request
                 </button>
               </div>

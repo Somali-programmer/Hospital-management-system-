@@ -48,11 +48,11 @@ export default function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/docs" element={<RequireAuth roles={['admin']}><Docs /></RequireAuth>} />
-              <Route path="/patients" element={<RequireAuth roles={['admin', 'doctor', 'receptionist', 'pharmacist', 'laboratorian']}><Patients /></RequireAuth>} />
-              <Route path="/appointments" element={<RequireAuth roles={['admin', 'doctor', 'receptionist']}><Appointments /></RequireAuth>} />
+              <Route path="/patients" element={<RequireAuth roles={['admin', 'doctor', 'receptionist', 'pharmacist', 'lab-tech', 'nurse']}><Patients /></RequireAuth>} />
+              <Route path="/appointments" element={<RequireAuth roles={['admin', 'doctor', 'receptionist', 'nurse']}><Appointments /></RequireAuth>} />
               <Route path="/doctors" element={<RequireAuth roles={['admin', 'receptionist', 'doctor']}><Doctors /></RequireAuth>} />
               <Route path="/pharmacy" element={<RequireAuth roles={['admin', 'pharmacist']}><Pharmacy /></RequireAuth>} />
-              <Route path="/laboratory" element={<RequireAuth roles={['admin', 'laboratorian']}><Laboratory /></RequireAuth>} />
+              <Route path="/laboratory" element={<RequireAuth roles={['admin', 'lab-tech']}><Laboratory /></RequireAuth>} />
               <Route path="/billing" element={<RequireAuth roles={['admin', 'receptionist']}><Billing /></RequireAuth>} />
               <Route path="/reports" element={<RequireAuth roles={['admin']}><Reports /></RequireAuth>} />
               <Route path="/settings" element={<Settings />} />

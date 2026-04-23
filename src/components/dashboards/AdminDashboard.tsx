@@ -1,131 +1,254 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Users, FileText, Activity, DollarSign, TrendingUp, BarChart2 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
-import { MOCK_PATIENTS, MOCK_APPOINTMENTS, MOCK_RECORDS, MOCK_BILLING } from '../../lib/mockData';
-
-const mockChartData = [
-  { name: 'Mon', revenue: 4000, patients: 24 },
-  { name: 'Tue', revenue: 3000, patients: 18 },
-  { name: 'Wed', revenue: 5500, patients: 32 },
-  { name: 'Thu', revenue: 4500, patients: 27 },
-  { name: 'Fri', revenue: 6000, patients: 40 },
-  { name: 'Sat', revenue: 2000, patients: 12 },
-  { name: 'Sun', revenue: 1500, patients: 8 },
-];
+import { useData } from '../../contexts/DataContext';
+import { Users, FileText, Activity, DollarSign, TrendingUp, BarChart2, UserPlus, ShieldCheck, Mail, Lock, User as UserIcon, Loader2, Hospital } from 'lucide-react';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
+import { cn } from '../../lib/utils';
+import { supabase } from '../../lib/supabase';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ 
-    patients: MOCK_PATIENTS.length, 
-    appointments: MOCK_APPOINTMENTS.length, 
-    records: MOCK_RECORDS.length, 
-    bills: MOCK_BILLING.length 
+  const { patients, appointments, billing, medicalRecords, refreshData } = useData();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userForm, setUserForm] = useState({
+    email: '',
+    password: '',
+    full_name: '',
+    role: 'doctor' as any
   });
+  const [regStatus, setRegStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  const stats = {
+    patients: patients.length,
+    appointments: appointments.length,
+    records: medicalRecords.length,
+    revenue: billing.filter(b => b.status === 'paid').reduce((acc, b) => acc + b.amount, 0)
+  };
+
+  const mockChartData = [
+    { name: 'Mon', revenue: 4000, patients: 24 },
+    { name: 'Tue', revenue: 3000, patients: 18 },
+    { name: 'Wed', revenue: 5500, patients: 32 },
+    { name: 'Thu', revenue: 4500, patients: 27 },
+    { name: 'Fri', revenue: 6000, patients: 40 },
+    { name: 'Sat', revenue: 2000, patients: 12 },
+    { name: 'Sun', revenue: 1500, patients: 8 },
+  ];
+
+  const handleRegisterUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegStatus(null);
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: userForm.email,
+        password: userForm.password,
+        options: {
+          data: {
+            full_name: userForm.full_name,
+            role: userForm.role
+          }
+        }
+      });
+
+      if (error) throw error;
+      
+      await refreshData();
+      setRegStatus({ type: 'success', message: `Staff member ${userForm.full_name} registered successfully. They can now sign in.` });
+      setUserForm({ email: '', password: '', full_name: '', role: 'doctor' });
+    } catch (err: any) {
+      setRegStatus({ type: 'error', message: err.message || "Failed to register user." });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">System Analytics</h2>
-          <p className="text-sm text-slate-500 font-medium mt-1">Real-time overview of clinic operations</p>
-        </div>
-        <button className="btn-secondary flex items-center gap-2 bg-white shadow-sm hover:shadow-md border border-slate-200">
-          <TrendingUp className="w-4 h-4" /> Export Report
-        </button>
-      </div>
-      
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           label="Total Patients" 
-          value={stats.patients || 124} 
+          value={stats.patients} 
           icon={Users} 
           colorScheme="blue" 
           trend="+12%"
         />
         <StatCard 
           label="Appointments" 
-          value={stats.appointments || 45} 
+          value={stats.appointments} 
           icon={Activity} 
           colorScheme="primary" 
           trend="+5%"
         />
         <StatCard 
-          label="Medical Records" 
-          value={stats.records || 312} 
+          label="Clinical Cases" 
+          value={stats.records} 
           icon={FileText} 
           colorScheme="purple" 
           trend="+8%"
         />
         <StatCard 
-          label="Revenue (Today)" 
-          value={`ETB ${(stats.bills * 650) || 12500}`} 
+          label="System Revenue" 
+          value={`ETB ${stats.revenue.toLocaleString()}`} 
           icon={DollarSign} 
           colorScheme="emerald" 
           trend="+18%"
         />
       </div>
 
-      {/* Analytics Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
-        <div className="lg:col-span-2 glass-panel p-6 sm:p-8">
-          <div className="mb-8 flex justify-between items-center">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-1 bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 h-fit">
+          <div className="mb-8 flex items-center gap-4 pb-6 border-b border-slate-100/50">
+            <div className="p-4 bg-primary-600 text-white rounded-[1.5rem] shadow-xl shadow-primary-500/20">
+              <UserPlus className="w-6 h-6" />
+            </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <BarChart2 className="w-5 h-5 text-primary-500" /> Revenue Trend
-              </h3>
-              <p className="text-sm text-slate-500 font-medium mt-1">Weekly aggregate in ETB</p>
-            </div>
-            <div className="px-3 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded-lg uppercase tracking-wider">
-              This Week
+              <h3 className="text-xl font-black text-slate-800 tracking-tight leading-tight">Staff Onboarding</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Personnel Management Unit</p>
             </div>
           </div>
-          <div className="h-[320px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0d9488" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#0d9488" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 13, fill: '#64748b', fontWeight: 500 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 13, fill: '#64748b', fontWeight: 500 }} tickFormatter={v => `ETB ${v}`} />
-                <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="4 4" />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', padding: '12px 16px' }}
-                  itemStyle={{ color: '#0d9488', fontWeight: 700, fontSize: '16px' }}
-                  labelStyle={{ color: '#64748b', fontWeight: 600, marginBottom: '4px' }}
+
+          <form onSubmit={handleRegisterUser} className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Legal Designation</label>
+              <div className="relative group">
+                <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary-600 transition-colors" />
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Dr. Abebe Bikila"
+                  value={userForm.full_name}
+                  onChange={e => setUserForm({...userForm, full_name: e.target.value})}
+                  className="w-full bg-slate-50 border-slate-100 rounded-2xl pl-11 pr-4 py-4 text-sm font-bold focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all outline-none"
                 />
-                <Area type="monotone" dataKey="revenue" stroke="#0d9488" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Staff Credentials (Email)</label>
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary-600 transition-colors" />
+                <input
+                  type="email"
+                  required
+                  placeholder="name@hospital.com"
+                  value={userForm.email}
+                  onChange={e => setUserForm({...userForm, email: e.target.value})}
+                  className="w-full bg-slate-50 border-slate-100 rounded-2xl pl-11 pr-4 py-4 text-sm font-bold focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Initial Access Token</label>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary-600 transition-colors" />
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={userForm.password}
+                  onChange={e => setUserForm({...userForm, password: e.target.value})}
+                  className="w-full bg-slate-50 border-slate-100 rounded-2xl pl-11 pr-4 py-4 text-sm font-bold focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Privilege Designation</label>
+              <select
+                required
+                value={userForm.role}
+                onChange={e => setUserForm({...userForm, role: e.target.value})}
+                className="w-full bg-slate-50 border-slate-100 rounded-2xl px-4 py-4 text-sm font-bold focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all outline-none appearance-none"
+              >
+                <option value="doctor">Consultant (Doctor)</option>
+                <option value="nurse">Clinical Support (Nurse)</option>
+                <option value="receptionist">Operations (Receptionist)</option>
+                <option value="lab-tech">Diagnostic Support (Laboratorian)</option>
+                <option value="pharmacist">Pharmaceuticals (Pharmacist)</option>
+                <option value="admin">Systems Administrator</option>
+              </select>
+            </div>
+
+            {regStatus && (
+              <div className={cn(
+                "p-4 rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-start gap-3 border animate-in slide-in-from-top-2",
+                regStatus.type === 'success' ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-rose-50 text-rose-700 border-rose-100"
+              )}>
+                {regStatus.type === 'success' ? <ShieldCheck className="w-5 h-5 shrink-0" /> : <Hospital className="w-5 h-5 shrink-0" />}
+                <p className="leading-relaxed">{regStatus.message}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 rounded-[1.5rem] shadow-xl shadow-slate-900/20 transition-all uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 mt-4 disabled:opacity-50"
+            >
+              {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
+              Authorize Staff Access
+            </button>
+          </form>
         </div>
-        
-        <div className="glass-panel p-6 sm:p-8 flex flex-col">
-          <div className="mb-8">
-            <h3 className="text-lg font-bold text-slate-800">Patient Intake</h3>
-            <p className="text-sm text-slate-500 font-medium mt-1">Daily visitors</p>
+
+        <div className="lg:col-span-2 space-y-8">
+          <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100">
+            <div className="mb-12 flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl font-black text-slate-800 tracking-tighter uppercase leading-tight">System Revenue Flow</h3>
+                <p className="text-[10px] font-black text-slate-400 mt-1 uppercase tracking-[0.2em]">Cross-departmental financial aggregate</p>
+              </div>
+              <div className="px-5 py-2 bg-primary-50 text-primary-700 text-[10px] font-black rounded-full uppercase tracking-widest border border-primary-200">
+                FY 2026 Audit
+              </div>
+            </div>
+            <div className="h-[340px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={mockChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 800 }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 800 }} tickFormatter={v => `${v/1000}k`} />
+                  <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="4 4" />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 60px rgba(0,0,0,0.1)', padding: '20px 24px' }}
+                    itemStyle={{ color: '#0ea5e9', fontWeight: 900, fontSize: '18px' }}
+                    labelStyle={{ color: '#64748b', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.15em', fontSize: '10px' }}
+                  />
+                  <Area type="monotone" dataKey="revenue" stroke="#0ea5e9" strokeWidth={5} fillOpacity={1} fill="url(#colorRevenue)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-          <div className="h-[320px] w-full flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockChartData}>
-                <defs>
-                  <linearGradient id="colorPatients" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
-                    <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.8}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 13, fill: '#64748b', fontWeight: 500 }} dy={10} />
-                <YAxis hide />
-                <Tooltip 
-                  cursor={{fill: '#f8fafc'}}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}
-                  itemStyle={{ color: '#3b82f6', fontWeight: 700 }}
-                />
-                <Bar dataKey="patients" fill="url(#colorPatients)" radius={[6, 6, 0, 0]} maxBarSize={48} />
-              </BarChart>
-            </ResponsiveContainer>
+          
+          <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary-500/20 to-transparent"></div>
+            <div className="relative z-10 flex flex-col md:flex-row gap-10 items-center">
+              <div className="flex-1 space-y-6">
+                <div>
+                  <h3 className="text-2xl font-black tracking-tighter uppercase leading-tight">Patient Influx Density</h3>
+                  <p className="text-[10px] font-black text-slate-400 mt-2 uppercase tracking-widest">Real-time clinical throughput indicators</p>
+                </div>
+                <div className="h-[120px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={mockChartData}>
+                      <Bar dataKey="patients" fill="#38bdf8" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-xl border border-white/10 p-8 rounded-[2rem] w-full md:w-auto text-center shrink-0">
+                 <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2">Target Efficiency</p>
+                 <p className="text-5xl font-black text-white font-mono tracking-tighter">94.2%</p>
+                 <div className="mt-6 flex items-center justify-center gap-2 text-emerald-400 font-black text-[10px] uppercase tracking-widest">
+                    <TrendingUp className="w-4 h-4" /> Leading Metrics
+                 </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -135,31 +258,34 @@ export default function AdminDashboard() {
 
 function StatCard({ label, value, icon: Icon, colorScheme, trend }: { label: string, value: string | number, icon: any, colorScheme: 'blue' | 'primary' | 'purple' | 'emerald', trend: string }) {
   const styles = {
-    blue: { iconBg: 'bg-blue-50 text-blue-600', trendText: 'text-blue-600', gradient: 'from-blue-500 to-blue-600' },
-    primary: { iconBg: 'bg-primary-50 text-primary-600', trendText: 'text-primary-600', gradient: 'from-primary-500 to-primary-600' },
-    purple: { iconBg: 'bg-purple-50 text-purple-600', trendText: 'text-purple-600', gradient: 'from-purple-500 to-purple-600' },
-    emerald: { iconBg: 'bg-emerald-50 text-emerald-600', trendText: 'text-emerald-600', gradient: 'from-emerald-500 to-emerald-600' },
+    blue: { iconBg: 'bg-blue-50 text-blue-600', trendBg: 'bg-blue-100 text-blue-800', gradient: 'from-blue-500 to-blue-600' },
+    primary: { iconBg: 'bg-primary-50 text-primary-600', trendBg: 'bg-primary-100 text-primary-800', gradient: 'from-primary-500 to-primary-600' },
+    purple: { iconBg: 'bg-purple-50 text-purple-600', trendBg: 'bg-purple-100 text-purple-800', gradient: 'from-purple-500 to-purple-600' },
+    emerald: { iconBg: 'bg-emerald-50 text-emerald-600', trendBg: 'bg-emerald-100 text-emerald-800', gradient: 'from-emerald-500 to-emerald-600' },
   };
 
   const scheme = styles[colorScheme];
 
   return (
-    <div className="glass-panel p-6 relative overflow-hidden group hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
-      <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${scheme.gradient} rounded-full blur-[40px] opacity-10 group-hover:opacity-20 transition-opacity`}></div>
+    <div className="bg-white p-8 rounded-[2.5rem] relative overflow-hidden group hover:shadow-2xl hover:shadow-slate-200 transition-all duration-500 border border-slate-100 shadow-sm">
+      <div className={`absolute -top-12 -right-12 w-40 h-40 bg-gradient-to-br ${scheme.gradient} rounded-full blur-[60px] opacity-5 group-hover:opacity-20 transition-opacity duration-700`}></div>
       <div className="flex justify-between items-start relative z-10">
         <div>
-          <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">{label}</p>
-          <p className="text-4xl font-extrabold text-slate-800 tracking-tight mt-2">{value}</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+          <p className="text-3xl font-black text-slate-900 tracking-tighter mt-4 font-mono">{value}</p>
         </div>
-        <div className={`p-4 rounded-2xl ${scheme.iconBg} border border-white shadow-sm`}>
+        <div className={`p-4 rounded-2xl ${scheme.iconBg} border border-white shadow-lg shadow-slate-200/50`}>
           <Icon className="w-6 h-6" />
         </div>
       </div>
-      <div className="mt-5 flex items-center gap-2 relative z-10">
-        <span className={`px-2 py-1 rounded-md text-xs font-bold ${scheme.iconBg} bg-opacity-50 border border-white/50`}>
+      <div className="mt-8 flex items-center gap-3 relative z-10">
+        <span className={cn(
+          "px-3 py-1 rounded-xl text-[9px] font-black tracking-widest uppercase border border-white",
+          scheme.trendBg
+        )}>
           {trend}
         </span>
-        <span className="text-xs font-medium text-slate-400">vs last week</span>
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Growth Vector</span>
       </div>
     </div>
   );

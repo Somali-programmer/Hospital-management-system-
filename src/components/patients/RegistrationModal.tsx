@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useData } from '../../contexts/DataContext';
-import { Plus, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, X, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface RegistrationModalProps {
   isOpen: boolean;
@@ -10,7 +10,8 @@ interface RegistrationModalProps {
 }
 
 export default function RegistrationModal({ isOpen, onClose, onSuccess }: RegistrationModalProps) {
-  const { addPatient, addBill } = useData();
+  const { addPatient, addBill, refreshData } = useData();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [regForm, setRegForm] = useState({
     firstName: '',
     lastName: '',
@@ -24,39 +25,60 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
     allergies: [] as string[]
   });
 
-  const handleRegisterPatient = (e: React.FormEvent) => {
+  const handleRegisterPatient = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { registrationFee, ...patientData } = regForm;
-    const newPatientId = addPatient(patientData);
-    
-    // Auto-generate registration fee bill as requested
-    if (registrationFee && parseFloat(registrationFee) > 0) {
-      addBill({
-        patientId: newPatientId,
-        amount: parseFloat(registrationFee),
-        status: 'unpaid',
-        issuedDate: new Date().toISOString(),
-        currency: 'ETB',
-        type: 'registration',
-        description: 'New Patient Registration Fee'
+    setIsSubmitting(true);
+    try {
+      const { registrationFee, ...patientData } = regForm;
+      
+      const newPatient = await addPatient({
+        first_name: patientData.firstName,
+        last_name: patientData.lastName,
+        dob: patientData.dob,
+        gender: patientData.gender === 'Male' ? 'M' : 'F',
+        contact_number: patientData.contact,
+        address_street: patientData.address,
+        blood_group: patientData.bloodGroup,
+        status: patientData.status,
+        allergies: patientData.allergies
       });
-    }
+      
+      if (!newPatient || !newPatient.id) throw new Error("Failed to create patient");
 
-    onClose();
-    if (onSuccess) onSuccess(newPatientId);
-    
-    setRegForm({
-      firstName: '',
-      lastName: '',
-      dob: '',
-      gender: 'M',
-      contact: '',
-      address: '',
-      bloodGroup: 'O+',
-      status: 'active',
-      registrationFee: '200',
-      allergies: []
-    });
+      // Auto-generate registration fee bill
+      if (registrationFee && parseFloat(registrationFee) > 0) {
+        await addBill({
+          patient_id: newPatient.id,
+          amount: parseFloat(registrationFee),
+          status: 'unpaid',
+          currency: 'ETB',
+          billing_type: 'registration',
+          description: 'New Patient Registration Fee'
+        });
+      }
+
+      await refreshData();
+      onClose();
+      if (onSuccess) onSuccess(newPatient.id);
+      
+      setRegForm({
+        firstName: '',
+        lastName: '',
+        dob: '',
+        gender: 'M',
+        contact: '',
+        address: '',
+        bloodGroup: 'O+',
+        status: 'active',
+        registrationFee: '200',
+        allergies: []
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Error registering patient. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -75,7 +97,7 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          className="relative bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl border border-slate-100 flex flex-col custom-scrollbar-hide"
+          className="relative bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl border border-slate-100 flex flex-col custom-scrollbar"
         >
           <div className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-6 py-5 flex items-center justify-between z-10">
             <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
@@ -112,9 +134,9 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Gender</label>
-                  <select value={regForm.gender} onChange={e => setRegForm({...regForm, gender: e.target.value as 'M'|'F'})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all outline-none">
-                    <option value="M">Male (M)</option>
-                    <option value="F">Female (F)</option>
+                  <select value={regForm.gender} onChange={e => setRegForm({...regForm, gender: e.target.value})} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all outline-none">
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -149,8 +171,11 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess }: Regist
             </div>
 
             <div className="sticky bottom-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 pt-6 flex justify-end gap-4 pb-2 z-10">
-              <button type="button" onClick={onClose} className="px-8 py-4 bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all active:scale-95">Discard</button>
-              <button type="submit" className="px-8 py-4 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-95">Enroll into Registry</button>
+              <button type="button" onClick={onClose} disabled={isSubmitting} className="px-8 py-4 bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all active:scale-95 disabled:opacity-50">Discard</button>
+              <button type="submit" disabled={isSubmitting} className="px-8 py-4 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-95 disabled:opacity-50 flex items-center gap-2">
+                {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                Enroll into Registry
+              </button>
             </div>
           </form>
         </motion.div>

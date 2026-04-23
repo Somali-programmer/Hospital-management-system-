@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { cn } from '../lib/utils';
-import { Search, Plus, CreditCard, DollarSign, Download, CheckCircle2, AlertCircle, X, TrendingUp, FileText } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Billing as BillType } from '../lib/mockData';
+import { Search, Plus, CreditCard, DollarSign, Download, CheckCircle2, AlertCircle, X, TrendingUp, FileText, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Billing as BillType } from '../types';
 
 export default function Billing() {
-  const { billing: bills, patients, addBill, updateBill } = useData();
+  const { billing: bills, patients, addBill, updateBill, refreshData } = useData();
   const [search, setSearch] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInvoicing, setIsInvoicing] = useState(false);
   const [newBill, setNewBill] = useState({
     patientId: '',
     amount: 0,
     currency: 'ETB',
-    type: 'other' as const,
+    type: 'registration' as const,
     description: 'Manual Invoice'
   });
 
@@ -25,25 +26,36 @@ export default function Billing() {
 
   const getPatientName = (id: string) => {
     const p = patients.find(p => p.id === id);
-    return p ? `${p.firstName} ${p.lastName}` : 'Unknown Patient';
+    return p ? `${p.first_name} ${p.last_name}` : 'Unknown Patient';
   };
 
   const filteredBills = bills.filter(b => 
-    getPatientName(b.patientId).toLowerCase().includes(search.toLowerCase()) ||
+    getPatientName(b.patient_id).toLowerCase().includes(search.toLowerCase()) ||
     b.id.toLowerCase().includes(search.toLowerCase())
   );
 
   const totalOutstanding = bills.filter(b => b.status === 'unpaid').reduce((acc, b) => acc + b.amount, 0);
 
-  const handleIssue = (e: React.FormEvent) => {
+  const handleIssue = async (e: React.FormEvent) => {
     e.preventDefault();
-    addBill({
-      ...newBill,
-      status: 'unpaid',
-      issuedDate: new Date().toISOString()
-    });
-    setIsInvoicing(false);
-    setNewBill({ patientId: '', amount: 0, currency: 'ETB', type: 'other', description: 'Manual Invoice' });
+    setIsSubmitting(true);
+    try {
+      await addBill({
+        patient_id: newBill.patientId,
+        amount: newBill.amount,
+        currency: newBill.currency,
+        billing_type: newBill.type,
+        description: newBill.description,
+        status: 'unpaid'
+      });
+      await refreshData();
+      setIsInvoicing(false);
+      setNewBill({ patientId: '', amount: 0, currency: 'ETB', type: 'registration', description: 'Manual Invoice' });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const openPaymentProcessing = (id: string, amount: number) => {
@@ -51,15 +63,26 @@ export default function Billing() {
     setPaymentAmount(amount);
   };
 
-  const confirmPayment = () => {
+  const confirmPayment = async () => {
     if (processingBillId) {
-      updateBill(processingBillId, { status: 'paid' });
-      setProcessingBillId(null);
+      setIsSubmitting(true);
+      try {
+        await updateBill(processingBillId, { 
+          status: 'paid',
+          updated_at: new Date().toISOString()
+        });
+        await refreshData();
+        setProcessingBillId(null);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto h-full pb-12 relative px-2">
+    <div className="space-y-8 max-w-7xl mx-auto h-full pb-12 relative px-2 animate-in fade-in duration-700">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 mt-2">
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase leading-tight">Financial Ledger</h2>
@@ -93,69 +116,71 @@ export default function Billing() {
           </div>
 
           <div className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead className="bg-slate-50 border-b border-slate-100">
-                <tr>
-                  <th className="px-8 py-6 font-black text-slate-400 uppercase text-[10px] tracking-widest">Billing ID</th>
-                  <th className="px-8 py-6 font-black text-slate-400 uppercase text-[10px] tracking-widest">Patient Candidate</th>
-                  <th className="px-8 py-6 font-black text-slate-400 uppercase text-[10px] tracking-widest">Issued Date</th>
-                  <th className="px-8 py-6 font-black text-slate-400 uppercase text-[10px] tracking-widest text-right">Amount</th>
-                  <th className="px-8 py-6 font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Status</th>
-                  <th className="px-8 py-6 font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {filteredBills.map(b => (
-                  <tr key={b.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-8 py-7 font-black text-slate-400 font-mono text-[11px] tracking-widest group-hover:text-primary-600">#{b.id}</td>
-                    <td className="px-8 py-7">
-                       <p className="font-black text-slate-800 uppercase tracking-tight leading-none truncate mb-1">{getPatientName(b.patientId)}</p>
-                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[200px]" title={b.description}>{b.description || b.type}</p>
-                    </td>
-                    <td className="px-8 py-7">
-                       <p className="font-bold text-slate-500 uppercase text-[11px] font-mono tracking-tighter">{new Date(b.issuedDate).toLocaleDateString()}</p>
-                    </td>
-                    <td className="px-8 py-7 text-right">
-                       <p className="font-black text-slate-900 font-mono text-base tracking-tighter">
-                         {b.amount.toFixed(2)} <span className="text-[10px] text-slate-400 uppercase font-bold">{b.currency}</span>
-                       </p>
-                    </td>
-                    <td className="px-8 py-7 text-center">
-                      <span className={cn(
-                        "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border shadow-sm inline-flex items-center gap-2",
-                        b.status === 'paid' ? "bg-emerald-100 text-emerald-800 border-emerald-200" : "bg-rose-100 text-rose-800 border-rose-200"
-                      )}>
-                        {b.status === 'paid' ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                        {b.status}
-                      </span>
-                    </td>
-                    <td className="px-8 py-7 text-center">
-                       <div className="flex items-center gap-2">
-                         <button 
-                           onClick={() => setViewingBill(b)}
-                           className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-primary-600 hover:text-white transition-all active:scale-95"
-                           title="View Details"
-                         >
-                           <FileText className="w-4 h-4" />
-                         </button>
-                         {b.status === 'unpaid' && (
-                           <button 
-                             onClick={() => openPaymentProcessing(b.id, b.amount)}
-                             className="p-2 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all active:scale-95"
-                             title="Receive Payment"
-                           >
-                             <DollarSign className="w-4 h-4" />
-                           </button>
-                         )}
-                         <button className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-primary-600 hover:text-white transition-all active:scale-95" title="Download">
-                            <Download className="w-4 h-4" />
-                         </button>
-                       </div>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th className="px-8 py-6 font-black text-slate-400 uppercase text-[10px] tracking-widest">Billing ID</th>
+                    <th className="px-8 py-6 font-black text-slate-400 uppercase text-[10px] tracking-widest">Patient Candidate</th>
+                    <th className="px-8 py-6 font-black text-slate-400 uppercase text-[10px] tracking-widest">Issued Date</th>
+                    <th className="px-8 py-6 font-black text-slate-400 uppercase text-[10px] tracking-widest text-right">Amount</th>
+                    <th className="px-8 py-6 font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Status</th>
+                    <th className="px-8 py-6 font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredBills.map(b => (
+                    <tr key={b.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-8 py-7 font-black text-slate-400 font-mono text-[11px] tracking-widest group-hover:text-primary-600">#{b.id.slice(0, 8)}</td>
+                      <td className="px-8 py-7">
+                         <p className="font-black text-slate-800 uppercase tracking-tight leading-none truncate mb-1">{getPatientName(b.patient_id)}</p>
+                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[200px]" title={b.description}>{b.description || b.billing_type}</p>
+                      </td>
+                      <td className="px-8 py-7">
+                         <p className="font-bold text-slate-500 uppercase text-[11px] font-mono tracking-tighter">{new Date(b.created_at).toLocaleDateString()}</p>
+                      </td>
+                      <td className="px-8 py-7 text-right">
+                         <p className="font-black text-slate-900 font-mono text-base tracking-tighter">
+                           {b.amount.toFixed(2)} <span className="text-[10px] text-slate-400 uppercase font-bold">{b.currency}</span>
+                         </p>
+                      </td>
+                      <td className="px-8 py-7 text-center">
+                        <span className={cn(
+                          "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border shadow-sm inline-flex items-center gap-2",
+                          b.status === 'paid' ? "bg-emerald-100 text-emerald-800 border-emerald-200" : "bg-rose-100 text-rose-800 border-rose-200"
+                        )}>
+                          {b.status === 'paid' ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                          {b.status}
+                        </span>
+                      </td>
+                      <td className="px-8 py-7 text-center">
+                         <div className="flex items-center gap-2">
+                           <button 
+                             onClick={() => setViewingBill(b)}
+                             className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-primary-600 hover:text-white transition-all active:scale-95"
+                             title="View Details"
+                           >
+                             <FileText className="w-4 h-4" />
+                           </button>
+                           {b.status === 'unpaid' && (
+                             <button 
+                               onClick={() => openPaymentProcessing(b.id, b.amount)}
+                               className="p-2 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all active:scale-95"
+                               title="Receive Payment"
+                             >
+                               <DollarSign className="w-4 h-4" />
+                             </button>
+                           )}
+                           <button className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-primary-600 hover:text-white transition-all active:scale-95" title="Download">
+                              <Download className="w-4 h-4" />
+                           </button>
+                         </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -186,7 +211,7 @@ export default function Billing() {
                  {bills.slice(0, 3).map(b => (
                    <div key={b.id} className="flex items-center justify-between gap-4 p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 rounded-xl transition-colors">
                       <div className="min-w-0">
-                         <p className="text-xs font-black text-slate-800 truncate uppercase tracking-tight">{getPatientName(b.patientId)}</p>
+                         <p className="text-xs font-black text-slate-800 truncate uppercase tracking-tight">{getPatientName(b.patient_id)}</p>
                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{b.status === 'paid' ? 'Payment Verified' : 'Awaiting Funds'}</p>
                       </div>
                       <p className={cn("text-xs font-black font-mono", b.status === 'paid' ? 'text-emerald-600' : 'text-rose-600')}>
@@ -211,6 +236,7 @@ export default function Billing() {
               <button 
                 onClick={() => setIsInvoicing(false)}
                 className="p-2.5 hover:bg-slate-100 rounded-xl transition-colors"
+                disabled={isSubmitting}
               >
                 <X className="w-5 h-5 text-slate-400" />
               </button>
@@ -226,8 +252,24 @@ export default function Billing() {
                 >
                   <option value="">Select Patient...</option>
                   {patients.map(p => (
-                    <option key={p.id} value={p.id}>{p.firstName} {p.lastName} ({p.id})</option>
+                    <option key={p.id} value={p.id}>{p.first_name} {p.last_name} ({p.id.slice(0, 8)})</option>
                   ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Bill Type</label>
+                <select 
+                  required
+                  value={newBill.type}
+                  onChange={e => setNewBill({...newBill, type: e.target.value as any})}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all outline-none"
+                >
+                  <option value="registration">Registration Fee</option>
+                  <option value="consultation">Consultation Fee</option>
+                  <option value="lab">Laboratory Analysis</option>
+                  <option value="pharmacy">Pharmacy Dispensing</option>
+                  <option value="other">General Service / Other</option>
                 </select>
               </div>
 
@@ -246,15 +288,18 @@ export default function Billing() {
               <div className="pt-4 flex gap-4">
                 <button 
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setIsInvoicing(false)}
-                  className="flex-1 px-6 py-4 bg-slate-50 text-slate-600 text-[11px] font-black uppercase tracking-widest rounded-2xl border border-slate-100 hover:bg-slate-100 transition-all"
+                  className="flex-1 px-6 py-4 bg-slate-50 text-slate-600 text-[11px] font-black uppercase tracking-widest rounded-2xl border border-slate-100 hover:bg-slate-100 transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all"
+                  disabled={isSubmitting}
+                  className="flex-1 px-6 py-4 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
+                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   Generate Invoice
                 </button>
               </div>
@@ -282,6 +327,7 @@ export default function Billing() {
             >
               <button 
                  onClick={() => setProcessingBillId(null)}
+                 disabled={isSubmitting}
                  className="absolute top-6 right-6 p-2 bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100 hover:text-slate-600 transition-colors"
               >
                  <X className="w-5 h-5" />
@@ -322,9 +368,11 @@ export default function Billing() {
 
               <button 
                 onClick={confirmPayment}
-                className="w-full px-6 py-4 bg-emerald-600 text-white text-[12px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+                className="w-full px-6 py-4 bg-emerald-600 text-white text-[12px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                Confirm Receipt <CheckCircle2 className="w-4 h-4" />
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                Confirm Receipt
               </button>
             </motion.div>
           </div>
@@ -365,13 +413,13 @@ export default function Billing() {
                  <div className="flex justify-between items-center border-b border-slate-200 pb-4">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</span>
                     <span className="text-sm font-black text-slate-800 text-right max-w-[200px] leading-tight">
-                      {viewingBill.description || viewingBill.type.toUpperCase()}
+                      {viewingBill.description || viewingBill.billing_type.toUpperCase()}
                     </span>
                  </div>
                  <div className="flex justify-between items-center border-b border-slate-200 pb-4">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient</span>
                     <span className="text-sm font-black text-slate-800 tracking-tight uppercase">
-                      {getPatientName(viewingBill.patientId)}
+                      {getPatientName(viewingBill.patient_id)}
                     </span>
                  </div>
                  <div className="flex justify-between items-center border-b border-slate-200 pb-4">

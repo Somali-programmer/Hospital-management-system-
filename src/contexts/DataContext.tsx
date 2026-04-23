@@ -1,136 +1,189 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { db } from '../lib/database';
 import { 
   Patient, 
   Appointment, 
   MedicalRecord, 
   Billing, 
-  Doctor, 
+  Profile, 
   Medicine, 
   LabTest, 
-  Staff,
   Prescription,
-  MOCK_PATIENTS,
-  MOCK_APPOINTMENTS,
-  MOCK_RECORDS,
-  MOCK_BILLING,
-  MOCK_DOCTORS,
-  MOCK_MEDICINES,
-  MOCK_LAB_TESTS,
-  MOCK_STAFF,
-  MOCK_PRESCRIPTIONS
-} from '../lib/mockData';
+  Vitals
+} from '../types';
 
 interface DataContextType {
   patients: Patient[];
   appointments: Appointment[];
   records: MedicalRecord[];
+  medicalRecords: MedicalRecord[]; // Alias
   billing: Billing[];
-  doctors: Doctor[];
+  staff: Profile[];
+  profiles: Profile[]; // Alias
   medicines: Medicine[];
   labTests: LabTest[];
-  staff: Staff[];
   prescriptions: Prescription[];
+  vitals: Vitals[];
+  loading: boolean;
+  refreshData: () => Promise<void>;
   
   // Create actions
-  addPatient: (patient: Omit<Patient, 'id'>) => string;
-  updatePatient: (id: string, data: Partial<Patient>) => void;
-  addAppointment: (appointment: Omit<Appointment, 'id'>) => void;
-  updateAppointment: (id: string, data: Partial<Appointment>) => void;
-  addRecord: (record: Omit<MedicalRecord, 'id'>) => void;
-  addBill: (bill: Omit<Billing, 'id'>) => void;
-  updateBill: (id: string, data: Partial<Billing>) => void;
-  addDoctor: (doctor: Omit<Doctor, 'id'>) => void;
-  updateMedicine: (id: string, data: Partial<Medicine>) => void;
-  addLabTest: (test: Omit<LabTest, 'id'>) => string;
-  updateLabTest: (id: string, data: Partial<LabTest>) => void;
-  addPrescription: (prescription: Omit<Prescription, 'id'>) => string;
-  updatePrescription: (id: string, data: Partial<Prescription>) => void;
+  addPatient: (patient: any) => Promise<Patient>;
+  updatePatient: (id: string, data: Partial<Patient>) => Promise<void>;
+  addAppointment: (appointment: any) => Promise<Appointment>;
+  updateAppointment: (id: string, data: Partial<Appointment>) => Promise<void>;
+  addRecord: (record: any) => Promise<MedicalRecord>;
+  addMedicalRecord: (record: any) => Promise<MedicalRecord>; // Alias
+  addBill: (bill: any) => Promise<Billing>;
+  updateBill: (id: string, data: Partial<Billing>) => Promise<void>;
+  updateMedicine: (id: string, data: Partial<Medicine>) => Promise<void>;
+  addLabTest: (test: any) => Promise<string>;
+  updateLabTest: (id: string, data: Partial<LabTest>) => Promise<void>;
+  addPrescription: (prescription: any, items: any[]) => Promise<string>;
+  updatePrescription: (id: string, data: Partial<Prescription>) => Promise<void>;
+  addVitals: (vitals: any) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [patients, setPatients] = useState<Patient[]>(MOCK_PATIENTS);
-  const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
-  const [records, setRecords] = useState<MedicalRecord[]>(MOCK_RECORDS);
-  const [billing, setBilling] = useState<Billing[]>(MOCK_BILLING);
-  const [doctors, setDoctors] = useState<Doctor[]>(MOCK_DOCTORS);
-  const [medicines, setMedicines] = useState<Medicine[]>(MOCK_MEDICINES);
-  const [labTests, setLabTests] = useState<LabTest[]>(MOCK_LAB_TESTS);
-  const [staff, setStaff] = useState<Staff[]>(MOCK_STAFF);
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>(MOCK_PRESCRIPTIONS);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [billing, setBilling] = useState<Billing[]>([]);
+  const [staff, setStaff] = useState<Profile[]>([]);
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [labTests, setLabTests] = useState<LabTest[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [vitals, setVitals] = useState<Vitals[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const addPatient = (data: Omit<Patient, 'id'>) => {
-    const newId = `P00${patients.length + 1}`;
-    const newPatient = { ...data, id: newId };
-    setPatients([...patients, newPatient]);
-    return newId;
+  const refreshData = async () => {
+    try {
+      setLoading(true);
+      const [
+        patientsData,
+        appointmentsData,
+        recordsData,
+        billingData,
+        staffData,
+        medicinesData,
+        labTestsData,
+        prescriptionsData,
+        vitalsData
+      ] = await Promise.all([
+        db.patients.list(),
+        db.appointments.list(),
+        db.medicalRecords.list(),
+        db.billing.list(),
+        db.profiles.list(),
+        db.medicines.list(),
+        db.labTests.list(),
+        db.prescriptions.list(),
+        db.vitals.list()
+      ]);
+
+      setPatients(patientsData);
+      setAppointments(appointmentsData);
+      setRecords(recordsData);
+      setBilling(billingData);
+      setStaff(staffData);
+      setMedicines(medicinesData);
+      setLabTests(labTestsData);
+      setPrescriptions(prescriptionsData);
+      setVitals(vitalsData);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updatePatient = (id: string, data: Partial<Patient>) => {
-    setPatients(patients.map(p => p.id === id ? { ...p, ...data } : p));
+  useEffect(() => {
+    refreshData();
+  }, []);
+
+  const addPatient = async (data: any) => {
+    const patient = await db.patients.create(data);
+    setPatients(prev => [patient, ...prev]);
+    return patient;
   };
 
-  const addAppointment = (data: Omit<Appointment, 'id'>) => {
-    const newApp = { ...data, id: `A00${appointments.length + 1}` };
-    setAppointments([...appointments, newApp]);
+  const updatePatient = async (id: string, data: Partial<Patient>) => {
+    const updated = await db.patients.update(id, data);
+    setPatients(prev => prev.map(p => p.id === id ? updated : p));
   };
 
-  const updateAppointment = (id: string, data: Partial<Appointment>) => {
-    setAppointments(appointments.map(a => a.id === id ? { ...a, ...data } : a));
+  const addAppointment = async (data: any) => {
+    const app = await db.appointments.create(data);
+    setAppointments(prev => [...prev, app]);
+    return app;
   };
 
-  const addRecord = (data: Omit<MedicalRecord, 'id'>) => {
-    const newRecord = { ...data, id: `R00${records.length + 1}` };
-    setRecords([...records, newRecord]);
+  const updateAppointment = async (id: string, data: Partial<Appointment>) => {
+    const updated = await db.appointments.update(id, data);
+    setAppointments(prev => prev.map(a => a.id === id ? updated : a));
   };
 
-  const addBill = (data: Omit<Billing, 'id'>) => {
-    const newBill = { ...data, id: `B00${billing.length + 1}` };
-    setBilling([...billing, newBill]);
+  const addRecord = async (data: any) => {
+    const record = await db.medicalRecords.create(data);
+    setRecords(prev => [record, ...prev]);
+    return record;
   };
 
-  const updateBill = (id: string, data: Partial<Billing>) => {
-    setBilling(billing.map(b => b.id === id ? { ...b, ...data } : b));
+  const addBill = async (data: any) => {
+    const bill = await db.billing.create(data);
+    setBilling(prev => [bill, ...prev]);
+    return bill;
   };
 
-  const addDoctor = (data: Omit<Doctor, 'id'>) => {
-    const newDoc = { ...data, id: `D00${doctors.length + 1}` };
-    setDoctors([...doctors, newDoc]);
+  const updateBill = async (id: string, data: Partial<Billing>) => {
+    const updated = await db.billing.update(id, data);
+    setBilling(prev => prev.map(b => b.id === id ? updated : b));
   };
 
-  const updateMedicine = (id: string, data: Partial<Medicine>) => {
-    setMedicines(medicines.map(m => m.id === id ? { ...m, ...data } : m));
+  const updateMedicine = async (id: string, data: Partial<Medicine>) => {
+    const updated = await db.medicines.update(id, data);
+    setMedicines(prev => prev.map(m => m.id === id ? updated : m));
   };
 
-  const addLabTest = (data: Omit<LabTest, 'id'>) => {
-    const newId = `L00${labTests.length + 1}`;
-    const newTest = { ...data, id: newId };
-    setLabTests([...labTests, newTest]);
-    return newId;
+  const addLabTest = async (data: any) => {
+    const test = await db.labTests.create(data);
+    setLabTests(prev => [test, ...prev]);
+    return test.id;
   };
 
-  const updateLabTest = (id: string, data: Partial<LabTest>) => {
-    setLabTests(labTests.map(t => t.id === id ? { ...t, ...data } : t));
+  const updateLabTest = async (id: string, data: Partial<LabTest>) => {
+    const updated = await db.labTests.update(id, data);
+    setLabTests(prev => prev.map(t => t.id === id ? updated : t));
   };
 
-  const addPrescription = (data: Omit<Prescription, 'id'>) => {
-    const newId = `PR00${prescriptions.length + 1}`;
-    const newPrescription = { ...data, id: newId };
-    setPrescriptions([...prescriptions, newPrescription]);
-    return newId;
+  const addPrescription = async (data: any, items: any[]) => {
+    const prescription = await db.prescriptions.create(data, items);
+    setPrescriptions(prev => [prescription, ...prev]);
+    return prescription.id;
   };
 
-  const updatePrescription = (id: string, data: Partial<Prescription>) => {
-    setPrescriptions(prescriptions.map(p => p.id === id ? { ...p, ...data } : p));
+  const updatePrescription = async (id: string, data: Partial<Prescription>) => {
+    const updated = await db.prescriptions.update(id, data);
+    setPrescriptions(prev => prev.map(p => p.id === id ? updated : p));
+  };
+
+  const addVitals = async (data: any) => {
+    const v = await db.vitals.create(data);
+    setVitals(prev => [v, ...prev]);
   };
 
   return (
     <DataContext.Provider value={{
-      patients, appointments, records, billing, doctors, medicines, labTests, staff, prescriptions,
-      addPatient, updatePatient, addAppointment, updateAppointment, addRecord, 
-      addBill, updateBill, addDoctor, updateMedicine, addLabTest, updateLabTest,
-      addPrescription, updatePrescription
+      patients, appointments, records, medicalRecords: records, 
+      billing, staff, profiles: staff, 
+      medicines, labTests, prescriptions, vitals,
+      loading, refreshData,
+      addPatient, updatePatient, addAppointment, updateAppointment, 
+      addRecord, addMedicalRecord: addRecord,
+      addBill, updateBill, updateMedicine, addLabTest, updateLabTest,
+      addPrescription, updatePrescription, addVitals
     }}>
       {children}
     </DataContext.Provider>
