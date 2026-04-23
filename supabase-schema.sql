@@ -162,6 +162,9 @@ ALTER TABLE billing ENABLE ROW LEVEL SECURITY;
 
 -- Allow authenticated users to read and write (simplified for FYP)
 CREATE POLICY "Public Read" ON profiles FOR SELECT USING (true);
+CREATE POLICY "Users can insert their own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update their own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+
 CREATE POLICY "Public Read" ON patients FOR SELECT USING (true);
 CREATE POLICY "Public Read" ON appointments FOR SELECT USING (true);
 CREATE POLICY "Public Read" ON vitals FOR SELECT USING (true);
@@ -183,3 +186,22 @@ $$ language 'plpgsql';
 
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_patients_updated_at BEFORE UPDATE ON patients FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- Automation: Automatically create a profile when a new user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, role, status)
+  VALUES (
+    NEW.id, 
+    COALESCE(NEW.raw_user_meta_data->>'full_name', 'New Staff'), 
+    COALESCE(NEW.raw_user_meta_data->>'role', 'doctor'),
+    'active'
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();

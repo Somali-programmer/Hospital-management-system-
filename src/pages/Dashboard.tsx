@@ -1,4 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
+import { Shield } from 'lucide-react';
 import AdminDashboard from '../components/dashboards/AdminDashboard';
 import DoctorDashboard from '../components/dashboards/DoctorDashboard';
 import ReceptionistDashboard from '../components/dashboards/ReceptionistDashboard';
@@ -7,9 +8,38 @@ import LaboratorianDashboard from '../components/dashboards/LaboratorianDashboar
 import NurseDashboard from '../components/dashboards/NurseDashboard';
 
 export default function Dashboard() {
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
 
-  if (!profile) return null;
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-400">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
+        <p className="font-bold uppercase tracking-widest text-[10px]">Synchronizing Records...</p>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-md mx-auto text-center space-y-6 animate-in fade-in duration-500 px-6">
+        <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center shadow-inner">
+          <Shield className="w-10 h-10" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Identity Record Missing</h2>
+          <p className="text-slate-500 text-sm leading-relaxed">
+            You have authenticated successfully, but we couldn't find your professional profile in the HMS registry. 
+          </p>
+        </div>
+        <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl">
+          <p className="text-xs text-amber-700 font-medium leading-relaxed italic">
+            <strong>Hint for student:</strong> This usually happens because "Sign Up" failed to create your profile record due to database permissions (RLS). Please follow the instructions in the chat to fix your SQL policies.
+          </p>
+        </div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nexus System Status: Profile Sync Required</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-[1400px] mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-700">

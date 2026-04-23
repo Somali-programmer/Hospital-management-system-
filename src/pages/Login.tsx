@@ -6,12 +6,15 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { loginAsMock } = useAuth();
+  const { loginAsMock, signUp } = useAuth();
   
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
 
   const configured = isSupabaseConfigured();
 
@@ -20,19 +23,26 @@ export default function Login() {
     if (!configured) return;
     
     setError('');
+    setMessage('');
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      if (isSignUp) {
+        await signUp(email, password, fullName, 'admin');
+        setMessage("Account created! Check your email for a confirmation link (if enabled) or try logging in.");
+        setIsSignUp(false);
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (error) throw error;
-      navigate('/dashboard');
+        if (error) throw error;
+        navigate('/dashboard');
+      }
     } catch (err: any) {
-      console.error("Login detail error:", err);
-      setError(err.message || "Invalid login credentials.");
+      console.error("Auth error:", err);
+      setError(err.message || "An error occurred.");
     } finally {
       setLoading(false);
     }
@@ -70,6 +80,24 @@ export default function Login() {
           
           {configured ? (
             <form className="space-y-6" onSubmit={handleSubmit}>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight text-center">
+                {isSignUp ? 'Create System Account' : 'Institutional Access'}
+              </h3>
+
+              {isSignUp && (
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Dr. Abdirahman Ahmed"
+                    value={fullName}
+                    onChange={e => setFullName(e.target.value)}
+                    className="w-full px-4 py-3.5 bg-slate-50 border-2 border-transparent focus:border-primary-500/20 focus:bg-white rounded-2xl text-sm font-medium text-slate-900 outline-none transition-all"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Identity (Email)</label>
                 <div className="relative group">
@@ -103,9 +131,16 @@ export default function Login() {
                 <div className="text-rose-600 text-[11px] bg-rose-50 p-4 rounded-2xl font-bold border border-rose-100 flex items-start gap-3">
                   <Shield className="w-4 h-4 shrink-0 mt-0.5" />
                   <div>
-                    <p className="mb-1 uppercase tracking-tight">Access Denied</p>
+                    <p className="mb-1 uppercase tracking-tight">Status: Rejected</p>
                     <p className="font-medium opacity-80 leading-relaxed italic">{error}</p>
                   </div>
+                </div>
+              )}
+
+              {message && (
+                <div className="text-emerald-600 text-[11px] bg-emerald-50 p-4 rounded-2xl font-bold border border-emerald-100 flex items-start gap-3">
+                  <ExternalLink className="w-4 h-4 shrink-0 mt-0.5" />
+                  <p className="font-medium leading-relaxed">{message}</p>
                 </div>
               )}
 
@@ -114,12 +149,22 @@ export default function Login() {
                 disabled={loading}
                 className="w-full h-14 flex justify-center items-center px-4 rounded-2xl text-sm font-black text-white bg-primary-600 hover:bg-primary-700 shadow-xl shadow-primary-500/20 transition-all disabled:opacity-70 active:scale-[0.98] uppercase tracking-widest"
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Authorize Entry'}
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isSignUp ? 'Register Account' : 'Authorize Entry')}
               </button>
+
+              <div className="pt-4 text-center">
+                <button 
+                  type="button"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-xs font-black text-primary-600 uppercase tracking-widest hover:underline"
+                >
+                  {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
+                </button>
+              </div>
 
               <div className="pt-6 border-t border-slate-50">
                 <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wide text-center leading-relaxed">
-                  First Login? Create your credentials in the <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline inline-flex items-center gap-1">Supabase Dashboard <ExternalLink className="w-3 h-3" /></a>
+                  Management Console: <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline inline-flex items-center gap-1">Supabase <ExternalLink className="w-3 h-3" /></a>
                 </p>
               </div>
             </form>

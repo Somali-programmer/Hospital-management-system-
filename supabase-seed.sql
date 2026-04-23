@@ -20,4 +20,4 @@ INSERT INTO patients (first_name, last_name, dob, gender, contact_number, blood_
 
 -- Note: To seed 'profiles', you must first create a user in Supabase Authentication 
 -- tab and then copy their UUID into the SQL below:
--- INSERT INTO profiles (id, full_name, role, status) VALUES ('2aa1c0fb-21f9-49df-9c55-0f8c48c0e4c1', 'suber diini abdullahi', 'admin', 'active');
+-- INSERT INTO profiles (id, full_name, role, status) VALUES ('PASTE_USER_ID_HERE', 'Your Name', 'admin', 'active');

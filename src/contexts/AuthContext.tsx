@@ -10,6 +10,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   logout: () => Promise<void>;
   loginAsMock: (role: UserRole) => void;
+  signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,7 +20,8 @@ const AuthContext = createContext<AuthContextType>({
   isAuthReady: false,
   signOut: async () => {},
   logout: async () => {},
-  loginAsMock: () => {}
+  loginAsMock: () => {},
+  signUp: async () => {}
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -107,8 +109,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
   };
 
+  const signUp = async (email: string, password: string, fullName: string, role: UserRole) => {
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          role: role
+        }
+      }
+    });
+
+    if (authError) throw authError;
+
+    // We no longer need to manually insert into profiles here
+    // because the Database Trigger handle_new_user() will do it for us!
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAuthReady, signOut, logout: signOut, loginAsMock }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAuthReady, signOut, logout: signOut, loginAsMock, signUp }}>
       {children}
     </AuthContext.Provider>
   );

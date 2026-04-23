@@ -116,11 +116,11 @@ export default function MainLayout() {
           <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary-100 border-2 border-primary-50 flex items-center justify-center text-primary-700 font-bold text-sm uppercase shrink-0 shadow-sm">
-                {profile?.full_name.charAt(0)}
+                {profile?.full_name ? profile.full_name.charAt(0) : <UserIcon className="w-5 h-5 opacity-40" />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-800 truncate">{profile?.full_name}</p>
-                <p className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold truncate">{profile?.role}</p>
+                <p className="text-sm font-bold text-slate-800 truncate">{profile?.full_name || 'Guest User'}</p>
+                <p className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold truncate">{profile?.role || 'Awaiting Profile'}</p>
               </div>
             </div>
             <button 
