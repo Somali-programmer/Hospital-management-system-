@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Profile, UserRole } from '../types';
 
 interface AuthContextType {
@@ -9,6 +9,7 @@ interface AuthContextType {
   isAuthReady: boolean;
   signOut: () => Promise<void>;
   logout: () => Promise<void>;
+  loginAsMock: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -17,7 +18,8 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isAuthReady: false,
   signOut: async () => {},
-  logout: async () => {}
+  logout: async () => {},
+  loginAsMock: () => {}
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -27,6 +29,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthReady, setIsAuthReady] = useState(false);
 
   useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      const savedMock = localStorage.getItem('mock_user_profile');
+      if (savedMock) {
+        const p = JSON.parse(savedMock);
+        setUser({ id: p.id, email: 'mock@example.com' });
+        setProfile(p);
+      }
+      setLoading(false);
+      setIsAuthReady(true);
+      return;
+    }
+
     // 1. Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -70,12 +84,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginAsMock = (role: UserRole) => {
+    const mockProfile: Profile = {
+      id: 'mock-id',
+      full_name: `Mock ${role.charAt(0).toUpperCase() + role.slice(1)}`,
+      role,
+      status: 'active',
+      created_at: new Date().toISOString()
+    };
+    localStorage.setItem('mock_user_profile', JSON.stringify(mockProfile));
+    setUser({ id: mockProfile.id, email: 'mock@example.com' });
+    setProfile(mockProfile);
+  };
+
   const signOut = async () => {
+    if (!isSupabaseConfigured()) {
+      localStorage.removeItem('mock_user_profile');
+      setUser(null);
+      setProfile(null);
+      return;
+    }
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAuthReady, signOut, logout: signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAuthReady, signOut, logout: signOut, loginAsMock }}>
       {children}
     </AuthContext.Provider>
   );

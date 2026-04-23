@@ -1,6 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { db } from '../lib/database';
 import { 
+  MOCK_PATIENTS, 
+  MOCK_APPOINTMENTS, 
+  MOCK_STAFF, 
+  MOCK_MEDICINES, 
+  MOCK_LAB_TESTS, 
+  MOCK_BILLING, 
+  MOCK_RECORDS, 
+  MOCK_PRESCRIPTIONS, 
+  MOCK_VITALS 
+} from '../lib/mockData';
+import { 
   Patient, 
   Appointment, 
   MedicalRecord, 
@@ -93,7 +104,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setPrescriptions(prescriptionsData);
       setVitals(vitalsData);
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error('Error refreshing data, falling back to mock data:', error);
+      setPatients(MOCK_PATIENTS);
+      setAppointments(MOCK_APPOINTMENTS);
+      setRecords(MOCK_RECORDS);
+      setBilling(MOCK_BILLING);
+      setStaff(MOCK_STAFF);
+      setMedicines(MOCK_MEDICINES);
+      setLabTests(MOCK_LAB_TESTS);
+      setPrescriptions(MOCK_PRESCRIPTIONS);
+      setVitals(MOCK_VITALS);
     } finally {
       setLoading(false);
     }

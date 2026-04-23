@@ -1,18 +1,24 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Shield, User, Loader2, Hospital } from 'lucide-react';
+import { Shield, User, Loader2, Hospital, ArrowRight, ExternalLink } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { loginAsMock } = useAuth();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const configured = isSupabaseConfigured();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!configured) return;
+    
     setError('');
     setLoading(true);
 
@@ -32,6 +38,11 @@ export default function Login() {
     }
   };
 
+  const handleMockLogin = () => {
+    loginAsMock('admin');
+    navigate('/dashboard');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -41,83 +52,112 @@ export default function Login() {
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900 tracking-tight">
-          FYP HMS
+          Nexus AHIS
         </h2>
         <div className="mt-2 flex justify-center">
-          <span className="px-2 py-1 bg-slate-100 text-slate-700 text-[10px] font-bold uppercase rounded-full tracking-wider border border-slate-200">
-            Cloud Integrated • Production Ready
+          <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-full tracking-widest border ${
+            configured 
+              ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+              : 'bg-amber-50 text-amber-600 border-amber-100'
+          }`}>
+            {configured ? 'Production Mode • Live Cloud' : 'Preview Mode • Mock Data'}
           </span>
         </div>
-        <p className="mt-2 text-center text-sm text-slate-500 font-medium">
-          FYP Hospital Management System
-        </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-xl shadow-slate-200/50 sm:rounded-2xl sm:px-10 border border-slate-100">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email Address</label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-slate-400" />
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
+        <div className="bg-white py-10 px-6 shadow-2xl shadow-slate-200/50 sm:rounded-[2rem] sm:px-12 border border-slate-100">
+          
+          {configured ? (
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Identity (Email)</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary-500 transition-colors">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    placeholder="name@institute.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border-2 border-transparent focus:border-primary-500/20 focus:bg-white rounded-2xl text-sm font-medium text-slate-900 outline-none transition-all"
+                  />
                 </div>
-                <input
-                  type="email"
-                  required
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 block w-full pl-10 sm:text-sm border-slate-200 rounded-xl py-2.5 px-3 border transition-all"
-                />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Password</label>
-              <div className="mt-1">
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Access Credential</label>
                 <input
                   type="password"
                   required
                   placeholder="••••••••"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 block w-full sm:text-sm border-slate-200 rounded-xl py-2.5 px-3 border transition-all"
+                  className="w-full px-4 py-3.5 bg-slate-50 border-2 border-transparent focus:border-primary-500/20 focus:bg-white rounded-2xl text-sm font-medium text-slate-900 outline-none transition-all"
                 />
               </div>
-            </div>
 
-            {error && (
-              <div className="text-red-600 text-xs bg-red-50 p-3 rounded-xl font-bold border border-red-100 flex items-center gap-2">
-                <Shield className="w-4 h-4 shrink-0" />
-                {error}
-              </div>
-            )}
+              {error && (
+                <div className="text-rose-600 text-[11px] bg-rose-50 p-4 rounded-2xl font-bold border border-rose-100 flex items-start gap-3">
+                  <Shield className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="mb-1 uppercase tracking-tight">Access Denied</p>
+                    <p className="font-medium opacity-80 leading-relaxed italic">{error}</p>
+                  </div>
+                </div>
+              )}
 
-            <div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 flex justify-center items-center py-2.5 px-4 border border-transparent rounded-xl shadow-lg shadow-primary-500/20 text-sm font-bold text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all disabled:opacity-70 disabled:cursor-not-allowed uppercase tracking-wider"
+                className="w-full h-14 flex justify-center items-center px-4 rounded-2xl text-sm font-black text-white bg-primary-600 hover:bg-primary-700 shadow-xl shadow-primary-500/20 transition-all disabled:opacity-70 active:scale-[0.98] uppercase tracking-widest"
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Secure Sign In'}
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Authorize Entry'}
               </button>
-            </div>
-          </form>
 
-          <div className="mt-8 pt-6 border-t border-slate-100 space-y-4">
-            <div className="text-center">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
-                Haramaya University<br />
-                College of Computing and Informatics
-              </p>
+              <div className="pt-6 border-t border-slate-50">
+                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wide text-center leading-relaxed">
+                  First Login? Create your credentials in the <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline inline-flex items-center gap-1">Supabase Dashboard <ExternalLink className="w-3 h-3" /></a>
+                </p>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-8 text-center py-4">
+              <div className="space-y-2">
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">Welcome to Preview Mode</h3>
+                <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                  The system is currently running on mock data. You can log in instantly with the default admin profile to explore the features.
+                </p>
+              </div>
+
+              <div className="grid gap-3">
+                <button
+                  onClick={handleMockLogin}
+                  className="group w-full h-16 flex items-center justify-between px-6 rounded-2xl text-slate-900 bg-slate-50 hover:bg-primary-600 hover:text-white transition-all border border-slate-100 hover:border-primary-500 hover:shadow-xl hover:shadow-primary-600/20"
+                >
+                  <div className="flex items-center gap-4 text-left">
+                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center group-hover:bg-primary-500 group-hover:text-white transition-colors">
+                      <Shield className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest">Entry: Admin Access</p>
+                      <p className="text-[10px] opacity-60 font-bold group-hover:opacity-80">Full administrative privileges</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+
+              <div className="pt-6">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
+                  To connect your own database,<br />
+                  use the setup prompt on initialization.
+                </p>
+              </div>
             </div>
-            <div className="bg-slate-50 rounded-xl p-3">
-              <p className="text-[10px] text-slate-500 font-medium leading-relaxed italic">
-                Note: This system requires a cloud account. Please authenticate with the credentials provided by your system administrator.
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

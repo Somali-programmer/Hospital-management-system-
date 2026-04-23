@@ -14,6 +14,7 @@ import Laboratory from './pages/Laboratory.tsx';
 import Billing from './pages/Billing.tsx';
 import Reports from './pages/Reports.tsx';
 import Settings from './pages/Settings.tsx';
+import SupabaseSetupModal from './components/SupabaseSetupModal';
 
 // --- PROTECTED ROUTE ---
 function RequireAuth({ children, roles }: { children: React.ReactNode, roles?: string[] }) {
@@ -40,6 +41,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <SupabaseSetupModal />
         <DataProvider>
           <Routes>
             <Route path="/login" element={<Login />} />

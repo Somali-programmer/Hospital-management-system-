@@ -1,7 +1,8 @@
 import React from 'react';
-import { User, Bell, Shield, Palette, Globe, HelpCircle, ChevronRight, LogOut } from 'lucide-react';
+import { User, Bell, Shield, Palette, Globe, HelpCircle, ChevronRight, LogOut, Database, RefreshCcw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 export default function Settings() {
   const { user, profile, logout } = useAuth();
@@ -11,6 +12,17 @@ export default function Settings() {
     logout();
     navigate('/login');
   };
+
+  const handleResetDevConfig = () => {
+    if (confirm('Are you sure you want to clear your local Supabase configuration? This will reload the page and switch back to default/mock data.')) {
+      localStorage.removeItem('VITE_SUPABASE_URL');
+      localStorage.removeItem('VITE_SUPABASE_ANON_KEY');
+      window.location.reload();
+    }
+  };
+
+  const isConfigLocal = !!localStorage.getItem('VITE_SUPABASE_URL');
+  const configured = isSupabaseConfigured();
 
   const sections = [
     { title: 'Personal Profile', sub: 'Manage identity & professional credentials', icon: User, color: 'text-primary-600' },
@@ -51,18 +63,31 @@ export default function Settings() {
          ))}
       </div>
 
-      <div className="pt-12 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-8">
-         <div className="text-center sm:text-left">
-           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nexus AHIS v1.2.4</p>
-           <p className="text-[11px] font-bold text-slate-500 uppercase tracking-tight italic">Frontend Prototype Mode • Mock Registry Active</p>
-         </div>
-         <button 
-           onClick={handleLogout}
-           className="px-10 py-4 bg-rose-50 text-rose-600 text-xs font-black uppercase tracking-widest rounded-2xl border border-rose-100 hover:bg-rose-100 hover:text-rose-700 transition-all flex items-center gap-3 shadow-sm hover:shadow-lg shadow-rose-500/10 active:scale-95"
-         >
-           <LogOut className="w-4 h-4" /> Terminate Session
-         </button>
-      </div>
+       <div className="pt-12 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-8">
+          <div className="text-center sm:text-left flex items-center gap-4">
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nexus AHIS v1.2.4</p>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-tight italic">
+                {configured ? (isConfigLocal ? 'Live Database (Local Config)' : 'Live Database (Environment)') : 'Frontend Prototype Mode • Mock Registry Active'}
+              </p>
+            </div>
+            {isConfigLocal && (
+              <button 
+                onClick={handleResetDevConfig}
+                className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-lg transition-colors group"
+                title="Reset local DB config"
+              >
+                <RefreshCcw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+              </button>
+            )}
+          </div>
+          <button 
+            onClick={handleLogout}
+            className="px-10 py-4 bg-rose-50 text-rose-600 text-xs font-black uppercase tracking-widest rounded-2xl border border-rose-100 hover:bg-rose-100 hover:text-rose-700 transition-all flex items-center gap-3 shadow-sm hover:shadow-lg shadow-rose-500/10 active:scale-95"
+          >
+            <LogOut className="w-4 h-4" /> Terminate Session
+          </button>
+       </div>
     </div>
   );
 }

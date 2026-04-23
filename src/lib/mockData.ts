@@ -1,277 +1,92 @@
-// --- Mock Data Layer for Frontend-only Project ---
-
-export interface Patient {
-  id: string;
-  firstName: string;
-  lastName: string;
-  dob: string;
-  gender: string;
-  contact: string;
-  address: string;
-  bloodGroup?: string;
-  allergies?: string[];
-  status: 'active' | 'stable' | 'critical';
-  emergencyContact?: string;
-  createdAt?: string;
-}
-
-export interface Appointment {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  date: string;
-  status: 'scheduled' | 'completed' | 'cancelled';
-  notes: string;
-}
-
-export interface Prescription {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  recordId?: string;
-  medicines: {
-    medicineId: string;
-    dosage: string;
-    frequency: string;
-    duration: string;
-  }[];
-  date: string;
-  status: 'pending' | 'dispensed' | 'cancelled';
-}
-
-export interface Billing {
-  id: string;
-  patientId: string;
-  appointmentId?: string;
-  type: 'consultation' | 'laboratory' | 'pharmacy' | 'registration' | 'other';
-  amount: number;
-  status: 'paid' | 'unpaid';
-  issuedDate: string;
-  currency: string;
-  description?: string;
-}
-
-export interface MedicalRecord {
-  id: string;
-  patientId: string;
-  doctorId: string;
-  appointmentId?: string;
-  diagnosis: string;
-  prescription: string; // Keep as string for summary
-  structuredPrescriptionId?: string;
-  labTestIds?: string[];
-  createdAt: string;
-  clinicalHistory: {
-    presentingComplaint: string;
-    familyHistory: string;
-    socialHistory: string;
-    vitals: {
-      bp: string;
-      temp: string;
-      pulse: string;
-    };
-  };
-}
+import { Patient, Profile, Appointment, Medicine, LabTest, MedicalRecord, Billing, Prescription, Vitals } from '../types';
 
 export const MOCK_PATIENTS: Patient[] = [
   { 
     id: 'P001', 
-    firstName: 'Abdifatah', 
-    lastName: 'Abdi Maygag', 
+    first_name: 'Abdifatah', 
+    last_name: 'Maygag', 
     dob: '1985-03-12', 
     gender: 'M', 
-    contact: '+251 91 123 4567', 
-    address: 'Bole Road, Addis Ababa',
-    bloodGroup: 'O+',
+    contact_number: '+251 91 123 4567', 
+    address_street: 'Bole Road, Addis Ababa',
+    blood_group: 'O+',
     allergies: ['Penicillin'],
     status: 'active',
-    emergencyContact: 'Mariam Maygag (+251 91 000 1111)'
+    emergency_contact_name: 'Mariam Maygag',
+    emergency_contact_phone: '+251 91 000 1111',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   },
   { 
     id: 'P002', 
-    firstName: 'Abdirahman', 
-    lastName: 'Omer Aden', 
+    first_name: 'Abdirahman', 
+    last_name: 'Aden', 
     dob: '1990-11-20', 
     gender: 'M', 
-    contact: '+251 92 234 5678', 
-    address: 'Kazanchis, Addis Ababa',
-    bloodGroup: 'A-',
+    contact_number: '+251 92 234 5678', 
+    address_street: 'Kazanchis, Addis Ababa',
+    blood_group: 'A-',
     allergies: ['Peanuts'],
     status: 'active',
-    emergencyContact: 'Ahmed Omer (+251 92 000 2222)'
-  },
-  { 
-    id: 'P003', 
-    firstName: 'Suber', 
-    lastName: 'Dini Abdulahi', 
-    dob: '1978-05-30', 
-    gender: 'M', 
-    contact: '+251 93 345 6789', 
-    address: 'Sarbet, Addis Ababa',
-    bloodGroup: 'B+',
-    allergies: ['Dust', 'Pollen'],
-    status: 'critical',
-    emergencyContact: 'Samira Dini (+251 93 000 3333)'
-  },
-  { 
-    id: 'P004', 
-    firstName: 'Mohamed', 
-    lastName: 'Bade Nour', 
-    dob: '1995-07-15', 
-    gender: 'M', 
-    contact: '+251 94 456 7890', 
-    address: 'Piazza, Addis Ababa',
-    bloodGroup: 'AB+',
-    allergies: [],
-    status: 'active',
-    emergencyContact: 'Fatumo Bade (+251 94 000 4444)'
-  },
-  { 
-    id: 'P005', 
-    firstName: 'Mohamed', 
-    lastName: 'Abdi Kayre', 
-    dob: '1982-12-05', 
-    gender: 'M', 
-    contact: '+251 95 567 8901', 
-    address: 'Old Airport, Addis Ababa',
-    bloodGroup: 'O-',
-    allergies: ['Dairy'],
-    status: 'stable',
-    emergencyContact: 'Hassan Abdi (+251 95 000 5555)'
-  },
+    emergency_contact_name: 'Ahmed Omer',
+    emergency_contact_phone: '+251 92 000 2222',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
 ];
 
 export const MOCK_APPOINTMENTS: Appointment[] = [
-  { id: 'A001', patientId: 'P001', doctorId: 'D001', date: '2026-04-10T09:00:00Z', status: 'completed', notes: 'Hypertension follow-up' },
-  { id: 'A002', patientId: 'P002', doctorId: 'D001', date: '2026-04-12T10:30:00Z', status: 'completed', notes: 'Persistent cough and fever' },
-  { id: 'A003', patientId: 'P003', doctorId: 'D001', date: '2026-04-15T14:00:00Z', status: 'completed', notes: 'Emergency abdominal pain' },
-  { id: 'A004', patientId: 'P004', doctorId: 'D001', date: '2026-04-16T11:00:00Z', status: 'completed', notes: 'Routine wellness check' },
-  { id: 'A005', patientId: 'P005', doctorId: 'D001', date: '2026-04-14T08:30:00Z', status: 'completed', notes: 'Diabetes management' },
-  { id: 'A006', patientId: 'P001', doctorId: 'D001', date: '2026-04-25T10:00:00Z', status: 'scheduled', notes: 'Follow-up BP check' },
+  { 
+    id: 'A001', 
+    patient_id: 'P001', 
+    doctor_id: 'D001', 
+    appointment_date: '2026-04-10T09:00:00Z', 
+    status: 'completed', 
+    notes: 'Hypertension follow-up',
+    created_at: new Date().toISOString()
+  }
 ];
 
-export interface Doctor {
-  id: string;
-  name: string;
-  specialization: string;
-  contact: string;
-  status: 'active' | 'on-leave' | 'inactive';
-  availability?: string;
-}
-
-export interface Medicine {
-  id: string;
-  name: string;
-  category: string;
-  stock: number;
-  price: number;
-  expiryDate: string;
-  unit: string;
-}
-
-export interface LabTest {
-  id: string;
-  patientId: string;
-  testName: string;
-  requestedBy: string;
-  status: 'pending' | 'completed';
-  result?: string;
-  requestDate: string;
-}
-
-export interface Staff {
-  id: string;
-  name: string;
-  role: 'doctor' | 'nurse' | 'receptionist' | 'admin' | 'pharmacist' | 'lab-tech';
-  department: string;
-  contact: string;
-  status: 'active' | 'inactive';
-}
-
-export const MOCK_DOCTORS: Doctor[] = [
-  { id: 'D001', name: 'Dr. Ahmed Hassan', specialization: 'Cardiology', contact: '+251 91 111 2222', status: 'active', availability: 'Mon-Fri' },
-  { id: 'D002', name: 'Dr. Sara Mohamed', specialization: 'Pediatrics', contact: '+251 91 333 4444', status: 'active', availability: 'Mon-Sat' },
-  { id: 'D003', name: 'Dr. Omar Ali', specialization: 'Dermatology', contact: '+251 91 555 6666', status: 'on-leave', availability: 'Resuming next week' },
+export const MOCK_STAFF: Profile[] = [
+  { 
+    id: 'D001', 
+    full_name: 'Dr. Ahmed Hassan', 
+    role: 'doctor', 
+    specialization: 'Cardiology', 
+    contact_number: '+251 91 111 2222', 
+    status: 'active',
+    created_at: new Date().toISOString()
+  },
+  { 
+    id: 'S001', 
+    full_name: 'Receptionist Muna', 
+    role: 'receptionist', 
+    status: 'active',
+    created_at: new Date().toISOString()
+  }
 ];
 
 export const MOCK_MEDICINES: Medicine[] = [
-  { id: 'M001', name: 'Paracetamol', category: 'Analgesic', stock: 500, price: 5.00, expiryDate: '2026-12-01', unit: 'Tablets' },
-  { id: 'M002', name: 'Amoxicillin', category: 'Antibiotic', stock: 200, price: 15.00, expiryDate: '2026-06-15', unit: 'Capsules' },
-  { id: 'M003', name: 'Insulin Glargine', category: 'Antidiabetic', stock: 50, price: 120.00, expiryDate: '2025-10-20', unit: 'Vials' },
+  { id: 'M001', name: 'Paracetamol', category: 'Analgesic', stock_quantity: 500, unit_price: 5.00, expiry_date: '2026-12-01', unit: 'Tablets' },
+  { id: 'M002', name: 'Amoxicillin', category: 'Antibiotic', stock_quantity: 200, unit_price: 15.00, expiry_date: '2026-06-15', unit: 'Capsules' }
 ];
 
 export const MOCK_LAB_TESTS: LabTest[] = [
-  { id: 'L001', patientId: 'P001', testName: 'Complete Blood Count (CBC)', requestedBy: 'D001', status: 'completed', result: 'Normal', requestDate: '2026-04-10' },
-  { id: 'L002', patientId: 'P002', testName: 'Lipid Profile', requestedBy: 'D001', status: 'pending', requestDate: '2026-04-18' },
-];
-
-export const MOCK_STAFF: Staff[] = [
-  { id: 'S001', name: 'Ahmed Hassan', role: 'doctor', department: 'Cardiology', contact: '+251 91 111 2222', status: 'active' },
-  { id: 'S002', name: 'Muna Ali', role: 'receptionist', department: 'Front Desk', contact: '+251 91 777 8888', status: 'active' },
-  { id: 'S003', name: 'Hassan Bile', role: 'pharmacist', department: 'Pharmacy', contact: '+251 91 999 0000', status: 'active' },
-];
-
-export const MOCK_RECORDS: MedicalRecord[] = [
-  { 
-    id: 'R001', 
-    patientId: 'P001', 
-    doctorId: 'D001', 
-    appointmentId: 'A001', 
-    diagnosis: 'Hypertension Stage 2', 
-    prescription: 'Amlodipine 5mg QD, Lisinopril 10mg QD', 
-    createdAt: '2026-04-10T10:00:00Z',
-    clinicalHistory: {
-      presentingComplaint: 'Routine follow-up for chronic high blood pressure. Occasional dizziness.',
-      familyHistory: 'Father had early onset heart disease and stroke.',
-      socialHistory: 'Sedentary desk job, high salt intake, moderate caffeine.',
-      vitals: { bp: '155/98', temp: '36.6°C', pulse: '78 bpm' }
-    }
-  },
-  { 
-    id: 'R002', 
-    patientId: 'P002', 
-    doctorId: 'D001', 
-    appointmentId: 'A002', 
-    diagnosis: 'Acute Bronchitis', 
-    prescription: 'Amoxicillin 500mg TID, Salbutamol Inhaler PRN', 
-    createdAt: '2026-04-12T11:30:00Z',
-    clinicalHistory: {
-      presentingComplaint: 'Non-productive cough for 5 days, chest tightness, low grade fever.',
-      familyHistory: 'Sister has bronchial asthma.',
-      socialHistory: 'Current smoker (5/day), works in a warehouse with dust exposure.',
-      vitals: { bp: '122/82', temp: '38.2°C', pulse: '88 bpm' }
-    }
-  },
+  { id: 'L001', patient_id: 'P001', test_name: 'Complete Blood Count (CBC)', status: 'completed', request_date: '2026-04-10', created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
 ];
 
 export const MOCK_BILLING: Billing[] = [
-  { id: 'B001', patientId: 'P001', appointmentId: 'A001', amount: 650.00, status: 'paid', issuedDate: '2026-04-10T10:05:00Z', currency: 'ETB', type: 'consultation', description: 'Initial Cardiology Consultation' },
-  { id: 'B002', patientId: 'P002', appointmentId: 'A002', amount: 950.00, status: 'paid', issuedDate: '2026-04-12T11:40:00Z', currency: 'ETB', type: 'consultation', description: 'General Practice Consultation' },
-  { id: 'B003', patientId: 'P003', appointmentId: 'A003', amount: 15400.00, status: 'unpaid', issuedDate: '2026-04-15T16:30:00Z', currency: 'ETB', type: 'other', description: 'Emergency Abdominal Procedure' },
-  { id: 'B004', patientId: 'P004', appointmentId: 'A004', amount: 450.00, status: 'paid', issuedDate: '2026-04-16T12:15:00Z', currency: 'ETB', type: 'registration', description: 'Annual Health Membership' },
-  { id: 'B005', patientId: 'P005', appointmentId: 'A005', amount: 1200.00, status: 'unpaid', issuedDate: '2026-04-14T10:00:00Z', currency: 'ETB', type: 'consultation', description: 'Endocrinology Review' },
+  { id: 'B001', patient_id: 'P001', amount: 650.00, status: 'paid', issued_date: '2026-04-10T10:05:00Z', currency: 'ETB', billing_type: 'consultation', created_at: new Date().toISOString() }
+];
+
+export const MOCK_RECORDS: MedicalRecord[] = [
+  { id: 'R001', patient_id: 'P001', doctor_id: 'D001', diagnosis: 'Hypertension Stage 2', treatment_plan: 'Amlodipine 5mg QD', created_at: new Date().toISOString() }
 ];
 
 export const MOCK_PRESCRIPTIONS: Prescription[] = [
-  {
-    id: 'PR001',
-    patientId: 'P001',
-    doctorId: 'D001',
-    date: '2026-04-10T10:15:00Z',
-    status: 'dispensed',
-    medicines: [
-      { medicineId: 'M001', dosage: '500mg', frequency: '2x daily', duration: '5 days' }
-    ]
-  },
-  {
-    id: 'PR002',
-    patientId: 'P002',
-    doctorId: 'D001',
-    date: '2026-04-12T11:45:00Z',
-    status: 'pending',
-    medicines: [
-      { medicineId: 'M002', dosage: '1 cap', frequency: '3x daily', duration: '7 days' },
-      { medicineId: 'M001', dosage: '500mg', frequency: '1x daily', duration: '3 days' }
-    ]
-  }
+  { id: 'PR001', patient_id: 'P001', doctor_id: 'D001', status: 'dispensed', created_at: new Date().toISOString() }
+];
+
+export const MOCK_VITALS: Vitals[] = [
+  { id: 'V001', patient_id: 'P001', appointment_id: 'A001', bp_systolic: 155, bp_diastolic: 98, temperature: 36.6, pulse_rate: 78, created_at: new Date().toISOString() }
 ];
