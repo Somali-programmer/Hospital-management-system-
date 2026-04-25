@@ -162,7 +162,7 @@ ALTER TABLE billing ENABLE ROW LEVEL SECURITY;
 
 -- Allow authenticated users to read and write (simplified for FYP)
 CREATE POLICY "Public Read" ON profiles FOR SELECT USING (true);
-CREATE POLICY "Users can insert their own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Authenticated users can insert profiles" ON profiles FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Users can update their own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
 CREATE POLICY "Public Read" ON patients FOR SELECT USING (true);

@@ -62,7 +62,7 @@ export default function DoctorDashboard() {
           appointment_id: selectedAppt.id,
           patient_id: selectedAppt.patient_id,
           doctor_id: profile.id,
-          status: 'pending'
+          status: 'draft'
         }, prescriptions.filter(p => p.name).map(p => ({
           medicine_name: p.name,
           dosage: p.dosage,

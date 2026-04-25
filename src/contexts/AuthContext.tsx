@@ -44,7 +44,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // 1. Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error("Auth session error:", error);
+        setLoading(false);
+        setIsAuthReady(true);
+        return;
+      }
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
@@ -52,6 +58,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         setIsAuthReady(true);
       }
+    }).catch(err => {
+      console.error("Auth session fetch error:", err);
+      setLoading(false);
+      setIsAuthReady(true);
     });
 
     // 2. Listen for auth changes
@@ -123,8 +133,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (authError) throw authError;
 
-    // We no longer need to manually insert into profiles here
-    // because the Database Trigger handle_new_user() will do it for us!
+    // Explicitly insert into profiles so it works dynamically even if triggers aren't configured
+    if (authData.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          full_name: fullName,
+          role: role,
+          status: 'active'
+        });
+
+      if (profileError && profileError.code !== '23505') {
+        console.warn('Profile creation note:', profileError.message);
+      }
+    }
   };
 
   return (

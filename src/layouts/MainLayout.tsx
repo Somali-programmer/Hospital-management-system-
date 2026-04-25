@@ -50,9 +50,9 @@ export default function MainLayout() {
     { name: 'System Docs', path: '/docs', icon: FileText, roles: ['admin'] },
   ];
 
-  const filteredNavItems = navItems.filter(item => 
-    profile?.role && item.roles.includes(profile.role)
-  );
+  const filteredNavItems = profile?.role 
+    ? navItems.filter(item => item.roles.includes(profile.role))
+    : navItems.filter(item => item.name === 'Dashboard' || item.name === 'Settings' || item.name === 'System Docs');
 
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden relative font-sans">
@@ -156,24 +156,24 @@ export default function MainLayout() {
              {location.pathname === '/dashboard' ? 'Overview' : location.pathname.substring(1)}
           </h2>
 
-          {/* Centered Search Bar */}
-          <div className="flex-1 flex justify-center max-w-2xl mx-auto px-4">
-            <div className="relative w-full max-w-md group">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          {/* Search Bar */}
+          <div className="flex-1 flex justify-start sm:justify-center mx-2 sm:mx-4 overflow-hidden">
+            <div className="relative w-full max-w-xs sm:max-w-md group">
+              <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
                 <Search className="h-4 w-4 text-slate-400 group-focus-within:text-primary-500 transition-colors" />
               </div>
               <input
                 type="text"
-                placeholder="Search patient records, IDs, or appointments..."
-                className="w-full pl-11 pr-4 py-2.5 bg-white/80 border border-slate-200/80 rounded-full text-sm font-medium text-slate-700 placeholder:text-slate-400 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all shadow-sm"
+                placeholder="Search..."
+                className="w-full pl-10 sm:pl-11 pr-2 sm:pr-4 py-2 sm:py-2.5 bg-white/80 border border-slate-200/80 rounded-full text-sm font-medium text-slate-700 placeholder:text-slate-400 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-300 transition-all shadow-sm"
               />
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <div className="hidden sm:flex absolute inset-y-0 right-0 pr-3 items-center pointer-events-none">
                 <span className="text-[10px] font-mono font-bold text-slate-300 border border-slate-200 px-1.5 py-0.5 rounded-md">⌘ K</span>
               </div>
             </div>
           </div>
 
-          <div className="ml-auto flex items-center gap-4 shrink-0">
+          <div className="relative flex items-center gap-2 sm:gap-4 shrink-0">
             <button className="relative p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full"></span>

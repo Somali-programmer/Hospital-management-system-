@@ -52,6 +52,23 @@ export default function AdminDashboard() {
 
       if (error) throw error;
       
+      // Explicitly insert into profiles table to ensure dynamic creation
+      // without relying on database triggers.
+      if (data.user) {
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: data.user.id,
+          full_name: userForm.full_name,
+          role: userForm.role,
+          status: 'active'
+        });
+
+        // We ignore the error here because if the trigger was successfully run, 
+        // it might already exist. If it fails due to RLS, they might need to update policies.
+        if (profileError && profileError.code !== '23505') { // 23505 is unique violation
+          console.warn('Profile insertion note:', profileError.message);
+        }
+      }
+
       await refreshData();
       setRegStatus({ type: 'success', message: `Staff member ${userForm.full_name} registered successfully. They can now sign in.` });
       setUserForm({ email: '', password: '', full_name: '', role: 'doctor' });
@@ -168,6 +185,12 @@ export default function AdminDashboard() {
                 <option value="pharmacist">Pharmaceuticals (Pharmacist)</option>
                 <option value="admin">Systems Administrator</option>
               </select>
+            </div>
+            
+            <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 mt-2">
+              <p className="text-[10px] text-amber-700 font-bold uppercase tracking-widest leading-relaxed">
+                SysAdmin Note: If email confirmations are disabled in your Supabase project, registering a new user will automatically sign you out and sign them in.
+              </p>
             </div>
 
             {regStatus && (

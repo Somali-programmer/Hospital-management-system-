@@ -350,12 +350,12 @@ export default function Patients() {
 
   return (
     <>
-      <div className="h-full flex flex-col lg:flex-row gap-6 overflow-hidden">
+      <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-7rem)] lg:overflow-hidden">
       
       {/* Registry Sidebar */}
       <div className={cn(
-        "flex-col lg:w-96 bg-white border border-slate-200/60 rounded-3xl shrink-0 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-all duration-300",
-        selectedPatientId ? "hidden lg:flex" : "flex w-full"
+        "flex-col lg:w-96 bg-white border border-slate-200/60 rounded-3xl shrink-0 lg:overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-all duration-300",
+        selectedPatientId ? "hidden lg:flex lg:h-full" : "flex w-full h-[calc(100vh-7rem)] lg:h-full flex-1"
       )}>
         <div className="p-6 border-b border-slate-100 bg-slate-50/30">
           <div className="flex items-center justify-between mb-6">
@@ -420,8 +420,8 @@ export default function Patients() {
 
       {/* Profile Detail Pane */}
       <div className={cn(
-        "flex-1 bg-white border border-slate-200/60 rounded-3xl overflow-hidden flex flex-col shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-all duration-300",
-        !selectedPatientId ? "hidden lg:flex" : "flex h-full"
+        "flex-1 bg-white border border-slate-200/60 rounded-3xl lg:overflow-hidden flex flex-col shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-all duration-300",
+        !selectedPatientId ? "hidden lg:flex" : "flex w-full min-h-[calc(100vh-7rem)] lg:h-full flex-1"
       )}>
         <AnimatePresence mode="wait">
           {!selectedPatientId ? (
@@ -462,10 +462,10 @@ export default function Patients() {
                key={selectedPatientId}
                initial={{ opacity: 0, y: 10 }}
                animate={{ opacity: 1, y: 0 }}
-               className="flex-1 flex flex-col h-full"
+               className="flex-1 flex flex-col h-full overflow-y-auto custom-scrollbar"
             >
               {/* Profile Header */}
-              <header className="px-4 py-6 md:p-8 border-b border-slate-100 bg-slate-50/50 relative">
+              <header className="px-4 py-6 md:p-8 border-b border-slate-100 bg-slate-50/50 relative shrink-0">
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 text-center sm:text-left">
                     <div className="relative shrink-0">
@@ -572,7 +572,7 @@ export default function Patients() {
               </header>
 
               {/* View Content */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
+              <div className="p-4 md:p-8">
                 
                 {/* --- Clinical History --- */}
                 {activeTab === 'clinical' && (
